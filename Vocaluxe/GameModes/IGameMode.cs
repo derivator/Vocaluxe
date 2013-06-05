@@ -1,36 +1,28 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿#region license
+// /*
+//     This file is part of Vocaluxe.
+// 
+//     Vocaluxe is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+// 
+//     Vocaluxe is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+// 
+//     You should have received a copy of the GNU General Public License
+//     along with Vocaluxe. If not, see <http://www.gnu.org/licenses/>.
+//  */
+#endregion
 
-using Vocaluxe.Base;
-using Vocaluxe.Menu;
-using Vocaluxe.Menu.SongMenu;
+using VocaluxeLib.Songs;
 
 namespace Vocaluxe.GameModes
 {
     interface IGameMode
     {
-        void Init();
-
-        EGameMode GetCurrentGameMode();
-
-        bool AddVisibleSong(int VisibleIndex, EGameMode GameMode);
-        bool AddSong(int AbsoluteIndex, EGameMode GameMode);
-        bool RemoveVisibleSong(int VisibleIndex);
-        bool RemoveSong(int AbsoluteIndex);
-        void ClearSongs();
-
-        void Reset();
-        void Start(SPlayer[] Player);
-        void NextRound(SPlayer[] Player);
-        bool IsFinished();
-        int GetCurrentRoundNr();
-        
-        CPoints GetPoints();
-
-        int GetNumSongs();
-        CSong GetSong();
-        CSong GetSong(int Num);
-        EGameMode GetGameMode(int Num);
+        CSong GetSong(int songID);
     }
 }

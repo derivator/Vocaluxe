@@ -1,100 +1,101 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using Vocaluxe.Base;
+﻿#region license
+// /*
+//     This file is part of Vocaluxe.
+// 
+//     Vocaluxe is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+// 
+//     Vocaluxe is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+// 
+//     You should have received a copy of the GNU General Public License
+//     along with Vocaluxe. If not, see <http://www.gnu.org/licenses/>.
+//  */
+#endregion
+
 using AForge.Video;
-using System.Drawing;
 using AForge.Video.DirectShow;
+using System.Collections.Generic;
+using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
-using Vocaluxe.Lib.Draw;
-using System.Threading;
-
-using Vocaluxe.Menu;
+using Vocaluxe.Base;
+using VocaluxeLib.Draw;
 
 namespace Vocaluxe.Lib.Webcam
 {
     class CAForgeNet : IWebcam
     {
-        private List<SWebcamDevice> _Devices = new List<SWebcamDevice>();
+        private readonly List<SWebcamDevice> _Devices = new List<SWebcamDevice>();
         private bool _Paused;
         private VideoCaptureDevice _Webcam;
         private FilterInfoCollection _WebcamDevices;
         private SWebcamConfig _Config;
-        byte[] data = new byte[1];
-        int _Width, _Height;
+        private byte[] _Data = new byte[1];
+        private static readonly object _MutexData = new object();
+        private int _Width, _Height;
 
         public void Close()
         {
-            if (_Webcam != null)
-            {
-                _Webcam.SignalToStop();
-                _Webcam.WaitForStop();
-                _Webcam.NewFrame -= new NewFrameEventHandler(OnFrame);
-                data = new byte[1];
-            }
+            if (_Webcam == null)
+                return;
+            _Webcam.SignalToStop();
+            _Webcam.WaitForStop();
+            _Webcam.NewFrame -= _OnFrame;
+            _Data = new byte[1];
         }
 
-        public bool GetFrame(ref STexture Frame)
+        public bool GetFrame(ref CTexture frame)
         {
-            if (_Webcam != null && _Width > 0 && _Height > 0 && data.Length == _Width * _Height * 4)
+            lock (_MutexData)
             {
-                lock (data)
-                {
-                    if (Frame.index == -1 || _Width != Frame.width || _Height != Frame.height)
-                    {
-                        CDraw.RemoveTexture(ref Frame);
-                        Frame = CDraw.AddTexture(_Width, _Height, ref data);
-                    }
-                    else
-                    {
-                        CDraw.UpdateTexture(ref Frame, ref data);
-                    }
-                }
+                if (_Webcam != null && _Width > 0 && _Height > 0 && _Data.Length == _Width * _Height * 4)
+                    CDraw.UpdateOrAddTexture(ref frame, _Width, _Height, _Data);
             }
             return false;
         }
 
         public Bitmap GetBitmap()
         {
-            if (_Webcam != null && _Width > 0 && _Height > 0 && data.Length == _Height * _Width * 4)
+            if (_Webcam != null && _Width > 0 && _Height > 0 && _Data.Length == _Height * _Width * 4)
             {
-                lock (data)
+                lock (_MutexData)
                 {
                     Bitmap bmp = new Bitmap(_Width, _Height);
                     BitmapData bitmapdata = bmp.LockBits(new Rectangle(0, 0, _Width, _Height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
-                    Marshal.Copy(data, 0, bitmapdata.Scan0, data.Length);
+                    Marshal.Copy(_Data, 0, bitmapdata.Scan0, _Data.Length);
                     bmp.UnlockBits(bitmapdata);
                     return bmp;
                 }
             }
-            else
-                return null;
+            return null;
         }
 
         public bool Init()
         {
             _WebcamDevices = new FilterInfoCollection(FilterCategory.VideoInputDevice);
-            int num = 0;
             foreach (FilterInfo info in _WebcamDevices)
             {
-                SWebcamDevice device = new SWebcamDevice {
-                    ID = num,
-                    Name = info.Name,
-                    MonikerString = info.MonikerString,
-                    Capabilities = new List<SCapabilities>()
-                };
-                num++;
+                SWebcamDevice device = new SWebcamDevice
+                    {
+                        Name = info.Name,
+                        MonikerString = info.MonikerString,
+                        Capabilities = new List<SCapabilities>()
+                    };
                 VideoCaptureDevice tmpdev = new VideoCaptureDevice(info.MonikerString);
 
-                for (int i = 0; i < tmpdev.VideoCapabilities.Length; i++ )
+                foreach (VideoCapabilities capabilities in tmpdev.VideoCapabilities)
                 {
                     SCapabilities item = new SCapabilities
-                    {
-                        Framerate = tmpdev.VideoCapabilities[i].FrameRate,
-                        Height = tmpdev.VideoCapabilities[i].FrameSize.Height,
-                        Width = tmpdev.VideoCapabilities[i].FrameSize.Width
-                    };
+                        {
+                            Framerate = capabilities.FrameRate,
+                            Height = capabilities.FrameSize.Height,
+                            Width = capabilities.FrameSize.Width
+                        };
                     device.Capabilities.Add(item);
                 }
                 _Devices.Add(device);
@@ -102,50 +103,44 @@ namespace Vocaluxe.Lib.Webcam
             return true;
         }
 
-        private void OnFrame(object sender, NewFrameEventArgs e)
+        private void _OnFrame(object sender, NewFrameEventArgs e)
         {
-            if (!_Paused)
+            if (_Paused)
+                return;
+            lock (_MutexData)
             {
-                lock (data)
-                {
-                    if (_Width != e.Frame.Width || _Height != e.Frame.Height || data.Length != e.Frame.Width * e.Frame.Height * 4)
-                        data = new byte[4 * e.Frame.Width * e.Frame.Height];
+                if (_Width != e.Frame.Width || _Height != e.Frame.Height || _Data.Length != e.Frame.Width * e.Frame.Height * 4)
+                    _Data = new byte[4 * e.Frame.Width * e.Frame.Height];
 
-                    _Width = e.Frame.Width;
-                    _Height = e.Frame.Height;
-                    BitmapData bitmapdata = e.Frame.LockBits(new Rectangle(0, 0, _Width, _Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
-                    Marshal.Copy(bitmapdata.Scan0, data, 0, data.Length);
-                    e.Frame.UnlockBits(bitmapdata);
-                }
+                _Width = e.Frame.Width;
+                _Height = e.Frame.Height;
+                BitmapData bitmapdata = e.Frame.LockBits(new Rectangle(0, 0, _Width, _Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+                Marshal.Copy(bitmapdata.Scan0, _Data, 0, _Data.Length);
+                e.Frame.UnlockBits(bitmapdata);
             }
         }
 
         public void Pause()
         {
             if (_Webcam != null)
-            {
                 _Paused = true;
-            }
         }
 
         public void Start()
         {
-            if (_Webcam != null)
-            {
-                _Webcam.NewFrame -= new NewFrameEventHandler(OnFrame);
-                //Subscribe to NewFrame event
-                _Webcam.NewFrame += new NewFrameEventHandler(OnFrame);
-                _Webcam.Start();
-                _Paused = false;
-            }
+            if (_Webcam == null)
+                return;
+            _Webcam.NewFrame -= _OnFrame;
+            //Subscribe to NewFrame event
+            _Webcam.NewFrame += _OnFrame;
+            _Webcam.Start();
+            _Paused = false;
         }
 
         public void Stop()
         {
             if (_Webcam != null)
-            {
                 _Webcam.SignalToStop();
-            }
         }
 
         public SWebcamDevice[] GetDevices()
@@ -153,7 +148,17 @@ namespace Vocaluxe.Lib.Webcam
             return _Devices.ToArray();
         }
 
-        public bool Select(SWebcamConfig Config)
+        public bool IsDeviceAvailable()
+        {
+            return _Devices.Count > 0;
+        }
+
+        public bool IsCapturing()
+        {
+            return _Webcam.IsRunning;
+        }
+
+        public bool Select(SWebcamConfig config)
         {
             //Close old camera connection
             Close();
@@ -164,18 +169,15 @@ namespace Vocaluxe.Lib.Webcam
                 return false;
 
             //No MonikerString found, try first webcam
-            if (Config.MonikerString == String.Empty)
-                _Webcam = new VideoCaptureDevice(_WebcamDevices[0].MonikerString);
-            else //Found MonikerString
-                _Webcam = new VideoCaptureDevice(Config.MonikerString);
+            _Webcam = config.MonikerString == "" ? new VideoCaptureDevice(_WebcamDevices[0].MonikerString) : new VideoCaptureDevice(config.MonikerString);
 
             if (_Webcam == null)
                 return false;
 
-            if (Config.Framerate != 0 && Config.Height != 0 && Config.Width != 0)
+            if (config.Framerate != 0 && config.Height != 0 && config.Width != 0)
             {
-                _Webcam.DesiredFrameRate = Config.Framerate;
-                _Webcam.DesiredFrameSize = new Size(Config.Width, Config.Height);
+                _Webcam.DesiredFrameRate = config.Framerate;
+                _Webcam.DesiredFrameSize = new Size(config.Width, config.Height);
             }
 
             _Config.Framerate = _Webcam.DesiredFrameRate;

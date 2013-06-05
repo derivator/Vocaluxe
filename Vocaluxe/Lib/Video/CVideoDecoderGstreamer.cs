@@ -1,30 +1,47 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿#region license
+// /*
+//     This file is part of Vocaluxe.
+// 
+//     Vocaluxe is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+// 
+//     Vocaluxe is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+// 
+//     You should have received a copy of the GNU General Public License
+//     along with Vocaluxe. If not, see <http://www.gnu.org/licenses/>.
+//  */
+#endregion
+
+using System;
 using Vocaluxe.Base;
 using Vocaluxe.Lib.Video.Gstreamer;
-using Vocaluxe.Menu;
+using VocaluxeLib.Draw;
 
 namespace Vocaluxe.Lib.Video
 {
     class CVideoDecoderGstreamer : IVideoDecoder
     {
         #region log
-        public CGstreamerVideoWrapper.LogCallback Log;
+        private CGstreamerVideoWrapper.LogCallback _Log;
 
-        private void LogHandler(string text)
+        private void _LogHandler(string text)
         {
             CLog.LogError(text);
-
         }
         #endregion log
 
         public bool Init()
         {
             bool retval = CGstreamerVideoWrapper.InitVideo();
-            Log = new CGstreamerVideoWrapper.LogCallback(LogHandler);
-            GC.SuppressFinalize(Log);
-            CGstreamerVideoWrapper.SetVideoLogCallback(Log);
+            _Log = _LogHandler;
+            //Really needed? CodeAnalysis complains
+            //GC.SuppressFinalize(Log);
+            CGstreamerVideoWrapper.SetVideoLogCallback(_Log);
             return retval;
         }
 
@@ -33,22 +50,22 @@ namespace Vocaluxe.Lib.Video
             CGstreamerVideoWrapper.CloseAllVideos();
         }
 
-        public int Load(string VideoFileName)
+        public int Load(string videoFileName)
         {
             int i = -1;
             try
             {
-                Uri u = new Uri(VideoFileName);
+                Uri u = new Uri(videoFileName);
                 i = CGstreamerVideoWrapper.LoadVideo(u.AbsoluteUri);
                 return i;
             }
-            catch (Exception e) { }
+            catch (Exception) {}
             return i;
         }
 
-        public bool Close(int StreamID)
+        public bool Close(int streamID)
         {
-            return CGstreamerVideoWrapper.CloseVideo(StreamID);
+            return CGstreamerVideoWrapper.CloseVideo(streamID);
         }
 
         public int GetNumStreams()
@@ -56,43 +73,43 @@ namespace Vocaluxe.Lib.Video
             return CGstreamerVideoWrapper.GetVideoNumStreams();
         }
 
-        public float GetLength(int StreamID)
+        public float GetLength(int streamID)
         {
-            return CGstreamerVideoWrapper.GetVideoLength(StreamID);
+            return CGstreamerVideoWrapper.GetVideoLength(streamID);
         }
 
-        public bool GetFrame(int StreamID, ref STexture Frame, float Time, ref float VideoTime)
+        public bool GetFrame(int streamID, ref CTexture frame, float time, out float videoTime)
         {
-            ManagedFrame frame = CGstreamerVideoWrapper.GetFrame(StreamID, Time);
-            VideoTime = frame.Videotime;
+            SManagedFrame managedFrame = CGstreamerVideoWrapper.GetFrame(streamID, time);
+            videoTime = managedFrame.Videotime;
 
-            UploadNewFrame(ref Frame, ref frame.buffer, frame.Width, frame.Height);
-            return true;
+            _UploadNewFrame(ref frame, ref managedFrame.Buffer, managedFrame.Width, managedFrame.Height);
+            return frame != null;
         }
 
-        public bool Skip(int StreamID, float Start, float Gap)
+        public bool Skip(int streamID, float start, float gap)
         {
-            return CGstreamerVideoWrapper.Skip(StreamID, Start, Gap);
+            return CGstreamerVideoWrapper.Skip(streamID, start, gap);
         }
 
-        public void SetLoop(int StreamID, bool Loop)
+        public void SetLoop(int streamID, bool loop)
         {
-            CGstreamerVideoWrapper.SetVideoLoop(StreamID, Loop);
+            CGstreamerVideoWrapper.SetVideoLoop(streamID, loop);
         }
 
-        public void Pause(int StreamID)
+        public void Pause(int streamID)
         {
-            CGstreamerVideoWrapper.PauseVideo(StreamID);
+            CGstreamerVideoWrapper.PauseVideo(streamID);
         }
 
-        public void Resume(int StreamID)
+        public void Resume(int streamID)
         {
-            CGstreamerVideoWrapper.ResumeVideo(StreamID);
+            CGstreamerVideoWrapper.ResumeVideo(streamID);
         }
 
-        public bool Finished(int StreamID)
+        public bool Finished(int streamID)
         {
-            return CGstreamerVideoWrapper.Finished(StreamID);
+            return CGstreamerVideoWrapper.Finished(streamID);
         }
 
         public void Update()
@@ -100,21 +117,12 @@ namespace Vocaluxe.Lib.Video
             CGstreamerVideoWrapper.UpdateVideo();
         }
 
-        private void UploadNewFrame(ref STexture frame, ref byte[] Data, int Width, int Height)
+        private void _UploadNewFrame(ref CTexture frame, ref byte[] data, int width, int height)
         {
-            if (Data != null)
-            {
-                if (frame.index == -1 || Width != frame.width || Height != frame.height || Data.Length == 0)
-                {
-                    CDraw.RemoveTexture(ref frame);
-                    frame = CDraw.AddTexture(Width, Height, ref Data);
-                }
-                else
-                {
-                    CDraw.UpdateTexture(ref frame, ref Data);
-                }
-                Data = null;
-            }
+            if (data == null)
+                return;
+            CDraw.UpdateOrAddTexture(ref frame, width, height, data);
+            data = null;
         }
     }
 }

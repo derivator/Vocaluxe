@@ -1,24 +1,38 @@
-﻿using System;
+﻿#region license
+// /*
+//     This file is part of Vocaluxe.
+// 
+//     Vocaluxe is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+// 
+//     Vocaluxe is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+// 
+//     You should have received a copy of the GNU General Public License
+//     along with Vocaluxe. If not, see <http://www.gnu.org/licenses/>.
+//  */
+#endregion
+
+using System;
 using System.Collections.Generic;
-using System.Text;
+using VocaluxeLib.Menu;
 
-using Vocaluxe.Menu;
-
-namespace Vocaluxe.PartyModes
+namespace VocaluxeLib.PartyModes
 {
     public abstract class CPartyMode : IPartyMode
     {
-        protected ScreenSongOptions _ScreenSongOptions;
-        protected Dictionary<string, CMenuParty> _Screens;
         protected string _Folder;
+        protected SScreenSongOptions _ScreenSongOptions;
+        protected readonly Dictionary<string, CMenuParty> _Screens;
 
-        public CPartyMode()
+        protected CPartyMode()
         {
             _Screens = new Dictionary<string, CMenuParty>();
-            _Folder = String.Empty;
-            _ScreenSongOptions = new ScreenSongOptions();
-            _ScreenSongOptions.Selection = new SelectionOptions();
-            _ScreenSongOptions.Sorting = new SortingOptions();
+            _ScreenSongOptions = new SScreenSongOptions {Selection = new SSelectionOptions(), Sorting = new SSortingOptions()};
         }
 
         #region Implementation
@@ -27,26 +41,20 @@ namespace Vocaluxe.PartyModes
             return false;
         }
 
-        public void Initialize()
+        public void Initialize() {}
+
+        public void AddScreen(CMenuParty screen, string screenName)
         {
+            _Screens.Add(screenName, screen);
         }
 
-        public void AddScreen(CMenuParty Screen, string ScreenName)
-        {
-            _Screens.Add(ScreenName, Screen);
-        }
+        public virtual void DataFromScreen(string screenName, Object data) {}
 
-        public virtual void DataFromScreen(string ScreenName, Object Data)
-        {
-        }
+        public virtual void UpdateGame() {}
 
-        public virtual void UpdateGame()
+        public virtual CMenuParty GetNextPartyScreen(out EScreens alternativeScreen)
         {
-        }
-
-        public virtual CMenuParty GetNextPartyScreen(out EScreens AlternativeScreen)
-        {
-            AlternativeScreen = EScreens.ScreenMain;
+            alternativeScreen = EScreens.ScreenMain;
             return null;
         }
 
@@ -60,18 +68,14 @@ namespace Vocaluxe.PartyModes
             return EScreens.ScreenSong;
         }
 
-        public virtual ScreenSongOptions GetScreenSongOptions()
+        public virtual SScreenSongOptions GetScreenSongOptions()
         {
-            return new ScreenSongOptions();
+            return new SScreenSongOptions();
         }
 
-        public virtual void OnSongChange(int SongIndex, ref ScreenSongOptions ScreenSongOptions)
-        {
-        }
+        public virtual void OnSongChange(int songIndex, ref SScreenSongOptions screenSongOptions) {}
 
-        public virtual void OnCategoryChange(int CategoryIndex, ref ScreenSongOptions ScreenSongOptions)
-        {
-        }
+        public virtual void OnCategoryChange(int categoryIndex, ref SScreenSongOptions screenSongOptions) {}
 
         public virtual int GetMaxPlayer()
         {
@@ -98,25 +102,31 @@ namespace Vocaluxe.PartyModes
             return 1;
         }
 
-        public virtual void SetSearchString(string SearchString, bool Visible)
+        public string GetFolder()
         {
+            return _Folder;
         }
 
-        public virtual void JokerUsed(int TeamNr)
+        public void SetFolder(string folder)
+        {
+            _Folder = folder;
+        }
+
+        public virtual void SetSearchString(string searchString, bool visible) {}
+
+        public virtual void JokerUsed(int teamNr)
         {
             if (_ScreenSongOptions.Selection.NumJokers == null)
                 return;
 
-            if (_ScreenSongOptions.Selection.NumJokers.Length < TeamNr)
+            if (_ScreenSongOptions.Selection.NumJokers.Length < teamNr)
                 return;
 
-            if (_ScreenSongOptions.Selection.NumJokers[TeamNr] > 0)
-                _ScreenSongOptions.Selection.NumJokers[TeamNr]--;
+            if (_ScreenSongOptions.Selection.NumJokers[teamNr] > 0)
+                _ScreenSongOptions.Selection.NumJokers[teamNr]--;
         }
 
-        public virtual void SongSelected(int SongID)
-        {
-        }
+        public virtual void SongSelected(int songID) {}
 
         public virtual void FinishedSinging()
         {

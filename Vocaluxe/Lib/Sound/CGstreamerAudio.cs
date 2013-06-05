@@ -1,7 +1,23 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Runtime.InteropServices;
+﻿#region license
+// /*
+//     This file is part of Vocaluxe.
+// 
+//     Vocaluxe is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+// 
+//     Vocaluxe is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+// 
+//     You should have received a copy of the GNU General Public License
+//     along with Vocaluxe. If not, see <http://www.gnu.org/licenses/>.
+//  */
+#endregion
+
+using System;
 using Vocaluxe.Base;
 using Vocaluxe.Lib.Sound.Gstreamer;
 
@@ -10,10 +26,10 @@ namespace Vocaluxe.Lib.Sound
     class CGstreamerAudio : IPlayback
     {
         //static float LastPosition;
-        #region log
-        public CGstreamerAudioWrapper.LogCallback Log;
+        private readonly CGstreamerAudioWrapper.LogCallback _LogCallback;
 
-        private void LogHandler(string text)
+        #region log
+        private static void _LogHandler(string text)
         {
             CLog.LogError(text);
         }
@@ -21,10 +37,10 @@ namespace Vocaluxe.Lib.Sound
 
         public CGstreamerAudio()
         {
-            Init();
-            Log = new CGstreamerAudioWrapper.LogCallback(LogHandler);
-            GC.SuppressFinalize(Log);
-            CGstreamerAudioWrapper.SetLogCallback(Log);
+            _LogCallback = _LogHandler;
+            //Is this really needed? CodaAnalyzer complains about it...
+            //GC.SuppressFinalize(_LogCallback);
+            CGstreamerAudioWrapper.SetLogCallback(_LogCallback);
         }
 
         public bool Init()
@@ -32,9 +48,9 @@ namespace Vocaluxe.Lib.Sound
             return CGstreamerAudioWrapper.Init();
         }
 
-        public void SetGlobalVolume(float Volume)
+        public void SetGlobalVolume(float volume)
         {
-            CGstreamerAudioWrapper.SetGlobalVolume(Volume);
+            CGstreamerAudioWrapper.SetGlobalVolume(volume);
         }
 
         public int GetStreamCount()
@@ -47,98 +63,98 @@ namespace Vocaluxe.Lib.Sound
             CGstreamerAudioWrapper.CloseAll();
         }
 
-        public int Load(string Media)
+        public int Load(string media)
         {
-            Uri u = new Uri(Media);
+            Uri u = new Uri(media);
             int i = CGstreamerAudioWrapper.Load(u.AbsoluteUri);
             return i;
         }
 
-        public int Load(string Media, bool Prescan)
+        public int Load(string media, bool prescan)
         {
-            Uri u = new Uri(Media);
-            int i = CGstreamerAudioWrapper.Load(u.AbsoluteUri, Prescan);
+            Uri u = new Uri(media);
+            int i = CGstreamerAudioWrapper.Load(u.AbsoluteUri, prescan);
             return i;
         }
 
-        public void Close(int Stream)
+        public void Close(int stream)
         {
-            CGstreamerAudioWrapper.Close(Stream);
+            CGstreamerAudioWrapper.Close(stream);
         }
 
-        public void Play(int Stream)
+        public void Play(int stream)
         {
-            CGstreamerAudioWrapper.Play(Stream);
+            CGstreamerAudioWrapper.Play(stream);
         }
 
-        public void Play(int Stream, bool Loop)
+        public void Play(int stream, bool loop)
         {
-            CGstreamerAudioWrapper.Play(Stream, Loop);
+            CGstreamerAudioWrapper.Play(stream, loop);
         }
 
-        public void Pause(int Stream)
+        public void Pause(int stream)
         {
-            CGstreamerAudioWrapper.Pause(Stream);
+            CGstreamerAudioWrapper.Pause(stream);
         }
 
-        public void Stop(int Stream)
+        public void Stop(int stream)
         {
-            CGstreamerAudioWrapper.Stop(Stream);
+            CGstreamerAudioWrapper.Stop(stream);
         }
 
-        public void Fade(int Stream, float TargetVolume, float Seconds)
+        public void Fade(int stream, float targetVolume, float seconds)
         {
-            CGstreamerAudioWrapper.Fade(Stream, TargetVolume, Seconds);
+            CGstreamerAudioWrapper.Fade(stream, targetVolume, seconds);
         }
 
-        public void FadeAndPause(int Stream, float TargetVolume, float Seconds)
+        public void FadeAndPause(int stream, float targetVolume, float seconds)
         {
-            CGstreamerAudioWrapper.FadeAndPause(Stream, TargetVolume, Seconds);
+            CGstreamerAudioWrapper.FadeAndPause(stream, targetVolume, seconds);
         }
 
-        public void FadeAndStop(int Stream, float TargetVolume, float Seconds)
+        public void FadeAndStop(int stream, float targetVolume, float seconds)
         {
-            CGstreamerAudioWrapper.FadeAndStop(Stream, TargetVolume, Seconds);
+            CGstreamerAudioWrapper.FadeAndStop(stream, targetVolume, seconds);
         }
 
-        public void SetStreamVolume(int Stream, float Volume)
+        public void SetStreamVolume(int stream, float volume)
         {
-            CGstreamerAudioWrapper.SetStreamVolume(Stream, Volume);
+            CGstreamerAudioWrapper.SetStreamVolume(stream, volume);
         }
 
-        public void SetStreamVolumeMax(int Stream, float Volume)
+        public void SetStreamVolumeMax(int stream, float volume)
         {
-            CGstreamerAudioWrapper.SetStreamVolumeMax(Stream, Volume);
+            CGstreamerAudioWrapper.SetStreamVolumeMax(stream, volume);
         }
 
-        public float GetLength(int Stream)
+        public float GetLength(int stream)
         {
-            return CGstreamerAudioWrapper.GetLength(Stream);
+            return CGstreamerAudioWrapper.GetLength(stream);
         }
 
-        public float GetPosition(int Stream)
+        public float GetPosition(int stream)
         {
-            return CGstreamerAudioWrapper.GetPosition(Stream);
+            return CGstreamerAudioWrapper.GetPosition(stream);
         }
 
-        public bool IsPlaying(int Stream)
+        public bool IsPlaying(int stream)
         {
-            return CGstreamerAudioWrapper.IsPlaying(Stream);
+            return CGstreamerAudioWrapper.IsPlaying(stream);
         }
 
-        public bool IsPaused(int Stream)
+        public bool IsPaused(int stream)
         {
-            return CGstreamerAudioWrapper.IsPaused(Stream);
+            return CGstreamerAudioWrapper.IsPaused(stream);
         }
 
-        public bool IsFinished(int Stream)
+        public bool IsFinished(int stream)
         {
-            return CGstreamerAudioWrapper.IsFinished(Stream);
+            return CGstreamerAudioWrapper.IsFinished(stream);
         }
 
-        public void SetPosition(int Stream, float Position)
+        public void SetPosition(int stream, float position)
         {
-            CGstreamerAudioWrapper.SetPosition(Stream, Position);
+            CGstreamerAudioWrapper.SetPosition(stream, position);
         }
 
         public void Update()

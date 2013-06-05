@@ -1,11 +1,28 @@
-﻿using System;
-using System.Collections.Generic;
+﻿#region license
+// /*
+//     This file is part of Vocaluxe.
+// 
+//     Vocaluxe is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+// 
+//     Vocaluxe is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+// 
+//     You should have received a copy of the GNU General Public License
+//     along with Vocaluxe. If not, see <http://www.gnu.org/licenses/>.
+//  */
+#endregion
+
+using System;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
-using System.Text;
-
 using Vocaluxe.Lib.Sound;
-using Vocaluxe.Menu;
+using VocaluxeLib;
 
 namespace Vocaluxe.Base
 {
@@ -17,9 +34,9 @@ namespace Vocaluxe.Base
     static class CSound
     {
         #region Playback
-        private static IPlayback _Playback = null;
+        private static IPlayback _Playback;
 
-        public static bool PlaybackInit()
+        public static bool Init()
         {
             switch (CConfig.PlayBackLib)
             {
@@ -39,12 +56,12 @@ namespace Vocaluxe.Base
                     _Playback = new CPortAudioPlay();
                     break;
             }
-            return true;
+            return _Playback.Init();
         }
 
-        public static void SetGlobalVolume(float Volume)
+        public static void SetGlobalVolume(float volume)
         {
-            _Playback.SetGlobalVolume(Volume);
+            _Playback.SetGlobalVolume(volume);
         }
 
         public static int GetStreamCount()
@@ -58,89 +75,89 @@ namespace Vocaluxe.Base
         }
 
         #region Stream Handling
-        public static int Load(string Media)
+        public static int Load(string media)
         {
-            return _Playback.Load(Media);
+            return _Playback.Load(media);
         }
 
-        public static int Load(string Media, bool Prescan)
+        public static int Load(string media, bool prescan)
         {
-            return _Playback.Load(Media, Prescan);
+            return _Playback.Load(media, prescan);
         }
 
-        public static void Close(int Stream)
+        public static void Close(int stream)
         {
-            _Playback.Close(Stream);
+            _Playback.Close(stream);
         }
 
-        public static void Play(int Stream)
+        public static void Play(int stream)
         {
-            _Playback.Play(Stream);
+            _Playback.Play(stream);
         }
 
-        public static void Play(int Stream, bool Loop)
+        public static void Play(int stream, bool loop)
         {
-            _Playback.Play(Stream, Loop);
+            _Playback.Play(stream, loop);
         }
 
-        public static void Pause(int Stream)
+        public static void Pause(int stream)
         {
-            _Playback.Pause(Stream);
+            _Playback.Pause(stream);
         }
 
-        public static void Stop(int Stream)
+        public static void Stop(int stream)
         {
-            _Playback.Stop(Stream);
+            _Playback.Stop(stream);
         }
 
-        public static void Fade(int Stream, float TargetVolume, float Seconds)
+        public static void Fade(int stream, float targetVolume, float seconds)
         {
-            _Playback.Fade(Stream, TargetVolume, Seconds);
+            _Playback.Fade(stream, targetVolume, seconds);
         }
 
-        public static void FadeAndPause(int Stream, float TargetVolume, float Seconds)
+        public static void FadeAndPause(int stream, float targetVolume, float seconds)
         {
-            _Playback.FadeAndPause(Stream, TargetVolume, Seconds);
+            _Playback.FadeAndPause(stream, targetVolume, seconds);
         }
 
-        public static void FadeAndStop(int Stream, float TargetVolume, float Seconds)
+        public static void FadeAndStop(int stream, float targetVolume, float seconds)
         {
-            _Playback.FadeAndStop(Stream, TargetVolume, Seconds);
+            _Playback.FadeAndStop(stream, targetVolume, seconds);
         }
 
-        public static void SetStreamVolume(int Stream, float Volume)
+        public static void SetStreamVolume(int stream, float volume)
         {
-            _Playback.SetStreamVolume(Stream, Volume);
+            _Playback.SetStreamVolume(stream, volume);
         }
 
-        public static void SetStreamVolumeMax(int Stream, float Volume)
+        public static void SetStreamVolumeMax(int stream, float volume)
         {
-            _Playback.SetStreamVolumeMax(Stream, Volume);
+            _Playback.SetStreamVolumeMax(stream, volume);
         }
 
-        public static float GetLength(int Stream)
+        public static float GetLength(int stream)
         {
-            return _Playback.GetLength(Stream);
+            return _Playback.GetLength(stream);
         }
 
-        public static float GetPosition(int Stream)
+        public static float GetPosition(int stream)
         {
-            return _Playback.GetPosition(Stream);
+            return _Playback.GetPosition(stream);
         }
 
-        public static bool IsPlaying(int Stream)
+        public static bool IsPlaying(int stream)
         {
-            return _Playback.IsPlaying(Stream);
+            return _Playback.IsPlaying(stream);
         }
 
-        public static bool IsPaused(int Stream)
+        public static bool IsPaused(int stream)
         {
-            return _Playback.IsPaused(Stream);
+            return _Playback.IsPaused(stream);
         }
 
-        public static bool IsFinished(int Stream)
+        public static bool IsFinished(int stream)
         {
-            return _Playback.IsFinished(Stream);
+            return _Playback.IsFinished(stream);
         }
 
         public static void Update()
@@ -148,40 +165,38 @@ namespace Vocaluxe.Base
             _Playback.Update();
         }
 
-        public static void SetPosition(int Stream, float Position)
+        public static void SetPosition(int stream, float position)
         {
-            _Playback.SetPosition(Stream, Position);
+            _Playback.SetPosition(stream, position);
         }
-
         #endregion Stream Handling
+
         #endregion Playback
 
         #region Sounds
-        public static int PlaySound(ESounds Sound)
+        public static int PlaySound(ESounds sound)
         {
-            string file = Path.Combine(Environment.CurrentDirectory, CSettings.sFolderSounds);
-            switch (Sound)
+            string file = Path.Combine(Environment.CurrentDirectory, CSettings.FolderSounds);
+            switch (sound)
             {
                 case ESounds.T440:
-                    file = Path.Combine(file, CSettings.sSoundT440);
-                    break;
-                default:
+                    file = Path.Combine(file, CSettings.SoundT440);
                     break;
             }
 
-            if (file == String.Empty)
+            if (file == "")
                 return -1;
 
-            int stream = CSound.Load(file);
-            float length = CSound.GetLength(stream);
-            CSound.Play(stream);
-            CSound.FadeAndStop(stream, 100f, length);
+            int stream = Load(file);
+            float length = GetLength(stream);
+            Play(stream);
+            FadeAndStop(stream, 100f, length);
             return stream;
         }
         #endregion Sounds
 
         #region Record
-        private static IRecord _Record = null;
+        private static IRecord _Record;
 
         public static bool RecordInit()
         {
@@ -201,7 +216,7 @@ namespace Vocaluxe.Base
                     _Record = new CPortAudioRecord();
                     break;
             }
-            
+
             return true;
         }
 
@@ -212,9 +227,7 @@ namespace Vocaluxe.Base
 
         public static bool RecordStart()
         {
-            SRecordDevice[] devices = RecordGetDevices();
-            
-            return _Record.Start(devices);
+            return _Record.Start();
         }
 
         public static bool RecordStop()
@@ -222,112 +235,100 @@ namespace Vocaluxe.Base
             return _Record.Stop();
         }
 
-        public static void AnalyzeBuffer(int Player)
+        public static void AnalyzeBuffer(int player)
         {
-            _Record.AnalyzeBuffer(Player);
+            _Record.AnalyzeBuffer(player);
         }
 
-        public static int RecordGetToneAbs(int Player)
+        public static int RecordGetToneAbs(int player)
         {
-            return _Record.GetToneAbs(Player);
+            return _Record.GetToneAbs(player);
         }
 
-        public static int RecordGetTone(int Player)
+        public static int RecordGetTone(int player)
         {
-            return _Record.GetTone(Player);
+            return _Record.GetTone(player);
         }
 
-        public static void RecordSetTone(int Player, int Tone)
+        public static void RecordSetTone(int player, int tone)
         {
-            _Record.SetTone(Player, Tone);
+            _Record.SetTone(player, tone);
         }
 
-        public static bool RecordToneValid(int Player)
+        public static bool RecordToneValid(int player)
         {
-            return _Record.ToneValid(Player);
+            return _Record.ToneValid(player);
         }
 
-        public static float RecordGetMaxVolume(int Player)
+        public static float RecordGetMaxVolume(int player)
         {
-            return _Record.GetMaxVolume(Player);
+            return _Record.GetMaxVolume(player);
         }
 
-        public static int NumHalfTones(int Player)
+        public static int NumHalfTones(int player)
         {
-            return _Record.NumHalfTones(Player);
+            return _Record.NumHalfTones(player);
         }
 
-        public static float[] ToneWeigth(int Player)
+        public static float[] ToneWeigth(int player)
         {
-            return _Record.ToneWeigth(Player);
+            return _Record.ToneWeigth(player);
         }
 
-        public static SRecordDevice[] RecordGetDevices()
+        public static ReadOnlyCollection<CRecordDevice> RecordGetDevices()
         {
-            SRecordDevice[] devices = _Record.RecordDevices();
-			
-			if (devices != null)
-			{
-	            for (int dev = 0; dev < devices.Length; dev++)
-	            {
-	                for (int inp = 0; inp < devices[dev].Inputs.Count; inp++)
-	                {
-	                    SInput input = devices[dev].Inputs[inp];
-	
-	                    input.PlayerChannel1 = GetPlayerFromMicConfig(devices[dev].Name, devices[dev].Driver, input.Name, 1);
-	                    input.PlayerChannel2 = GetPlayerFromMicConfig(devices[dev].Name, devices[dev].Driver, input.Name, 2);
-	
-	                    devices[dev].Inputs[inp] = input;
-	                }
-	            }
-				return devices;
-			}
+            ReadOnlyCollection<CRecordDevice> devices = _Record.RecordDevices();
+
+            if (devices != null)
+            {
+                foreach (CRecordDevice device in devices)
+                {
+                    device.PlayerChannel1 = _GetPlayerFromMicConfig(device.Name, device.Driver, 1);
+                    device.PlayerChannel2 = _GetPlayerFromMicConfig(device.Name, device.Driver, 2);
+                }
+                return devices;
+            }
 
             return null;
         }
 
-        private static int GetPlayerFromMicConfig(string device, string devicedriver, string input, int channel)
+        private static int _GetPlayerFromMicConfig(string device, string devicedriver, int channel)
         {
             for (int p = 0; p < CSettings.MaxNumPlayer; p++)
             {
                 if (CConfig.MicConfig[p].Channel != 0 &&
                     CConfig.MicConfig[p].DeviceName == device &&
                     CConfig.MicConfig[p].DeviceDriver == devicedriver &&
-                    CConfig.MicConfig[p].InputName == input &&
                     CConfig.MicConfig[p].Channel == channel)
-                {
                     return p + 1;
-                }
             }
             return 0;
         }
         #endregion Record
     }
 
-    class CBuffer
+    class CBuffer : IDisposable
     {
         private const double _BaseToneFreq = 65.4064;
         private const int _NumHalfTones = 47;
 
-        private float[] _ToneWeigth;
+        private readonly float[] _ToneWeigth;
         private Int16[] _AnalysisBuffer = new Int16[4096];
-        private Object _AnalysisBufferLock = new Object();
+        private readonly Object _AnalysisBufferLock = new Object();
 
-        private bool _ToneValid = false;
-        private int _Tone = 0;
-        private int _ToneAbs = 0;
-        private double _MaxVolume = 0.0;
+        private bool _ToneValid;
+        private int _Tone;
+        private int _ToneAbs;
+        private double _MaxVolume;
         private bool _NewSamples;
 
-        private MemoryStream _Stream;                       // full buffer
+        private MemoryStream _Stream; // full buffer
 
         public CBuffer()
         {
             _ToneWeigth = new float[_NumHalfTones];
             for (int i = 0; i < _ToneWeigth.Length; i++)
-            {
                 _ToneWeigth[i] = 0.99f;
-            }
             _Stream = new MemoryStream();
             _NewSamples = false;
         }
@@ -339,12 +340,12 @@ namespace Vocaluxe.Base
 
         public int ToneAbs
         {
-            get 
+            get
             {
                 lock (_AnalysisBufferLock)
                 {
-                    return _ToneAbs; 
-                } 
+                    return _ToneAbs;
+                }
             }
         }
 
@@ -426,14 +427,12 @@ namespace Vocaluxe.Base
 
         public void ProcessNewBuffer(byte[] buffer)
         {
-
             // apply software boost
             //BoostBuffer(Buffer, BufferSize);
 
             // voice passthrough (send data to playback-device)
             //if (assigned(fVoiceStream)) then
             //fVoiceStream.WriteData(Buffer, BufferSize);
-
             lock (_AnalysisBufferLock)
             {
                 Add(buffer);
@@ -473,99 +472,105 @@ namespace Vocaluxe.Base
                 _MaxVolume = 0;
                 for (int i = 0; i < _AnalysisBuffer.Length / 4; i++)
                 {
-                    float Volume = Math.Abs((float)_AnalysisBuffer[i]) / (float)Int16.MaxValue;
-                    if (Volume > MaxVolume)
-                        _MaxVolume = Volume;
+                    float volume = Math.Abs((float)_AnalysisBuffer[i]) / Int16.MaxValue;
+                    if (volume > MaxVolume)
+                        _MaxVolume = volume;
                 }
 
-                if (_MaxVolume >= 0.02f)
-                    AnalyzeByAutocorrelation(true);
-                else
-                    AnalyzeByAutocorrelation(false);
-
+                _AnalyzeByAutocorrelation(_MaxVolume >= 0.02f);
             }
-            catch (Exception)
-            {
-
-            }
+            catch (Exception) {}
         }
 
-        private void AnalyzeByAutocorrelation(bool valid)
+        private void _AnalyzeByAutocorrelation(bool valid)
         {
-            const double HalftoneBase = 1.05946309436; // 2^(1/12) -> HalftoneBase^12 = 2 (one octave)
+            if (!valid)
+            {
+                _ToneValid = false;
+                return;
+            }
+
+            const double halftoneBase = 1.05946309436; // 2^(1/12) -> HalftoneBase^12 = 2 (one octave)
 
             // prepare to analyze
-            double MaxWeight = -1.0;
-            double MinWeight = 1.0;
-            int MaxTone = -1;
-            float[] Weigth = new float[_NumHalfTones];
+            double maxWeight = -1.0;
+            double minWeight = 1.0;
+            int maxTone = -1;
+            float[] weigth = new float[_NumHalfTones];
 
             // analyze halftones
             // Note: at the lowest tone (~65Hz) and a buffer-size of 4096
             // at 44.1 (or 48kHz) only 6 (or 5) samples are compared, this might be
             // too few samples -> use a bigger buffer-size
-
-            for (int ToneIndex = 0; ToneIndex < _NumHalfTones; ToneIndex++)
+            for (int toneIndex = 0; toneIndex < _NumHalfTones; toneIndex++)
             {
-                double CurFreq = _BaseToneFreq * Math.Pow(HalftoneBase, ToneIndex);
-                double CurWeight = AnalyzeAutocorrelationFreq(CurFreq);
+                double curFreq = _BaseToneFreq * Math.Pow(halftoneBase, toneIndex);
+                double curWeight = _AnalyzeAutocorrelationFreq(curFreq);
 
-                if (CurWeight > MaxWeight)
+                if (curWeight > maxWeight)
                 {
-                    MaxWeight = CurWeight;
-                    MaxTone = ToneIndex;
+                    maxWeight = curWeight;
+                    maxTone = toneIndex;
                 }
 
-                if (CurWeight < MinWeight)
-                    MinWeight = CurWeight;
+                if (curWeight < minWeight)
+                    minWeight = curWeight;
 
-                Weigth[ToneIndex] = (float)CurWeight;
+                weigth[toneIndex] = (float)curWeight;
             }
 
-            if (valid && MaxWeight - MinWeight > 0.01)
+            if (maxWeight - minWeight > 0.01)
             {
-                for (int i = 0; i < Weigth.Length; i++)
-                {
-                    _ToneWeigth[i] = Weigth[i];
-                }
+                for (int i = 0; i < weigth.Length; i++)
+                    _ToneWeigth[i] = weigth[i];
 
-                _ToneAbs = MaxTone;
-                _Tone = MaxTone % 12;
+                _ToneAbs = maxTone;
+                _Tone = maxTone % 12;
                 _ToneValid = true;
             }
             else
                 _ToneValid = false;
         }
 
-        private double AnalyzeAutocorrelationFreq(double Freq)
+        private double _AnalyzeAutocorrelationFreq(double freq)
         {
-            int SampleIndex = 0;                                            // index of sample to analyze
-            int SamplesPerPeriod = (int)Math.Round(44100.0 / Freq);         // samples in one period
-            int CorrelatingSampleIndex = SampleIndex + SamplesPerPeriod;    // index of sample one period ahead
+            int sampleIndex = 0; // index of sample to analyze
+            int samplesPerPeriod = (int)Math.Round(44100.0 / freq); // samples in one period
+            int correlatingSampleIndex = sampleIndex + samplesPerPeriod; // index of sample one period ahead
 
-            double AccumDist = 0.0;                                         // accumulated distances
+            double accumDist = 0.0; // accumulated distances
 
             // compare correlating samples
-            while (CorrelatingSampleIndex < _AnalysisBuffer.Length)
+            while (correlatingSampleIndex < _AnalysisBuffer.Length)
             {
                 // calc distance (correlation: 1-dist) to corresponding sample in next period
                 // distance (0=equal .. 1=totally different) between correlated samples
-                double Dist = Math.Abs((double)_AnalysisBuffer[SampleIndex] - _AnalysisBuffer[CorrelatingSampleIndex]) / (double)Int16.MaxValue;
-                AccumDist += Dist;
-                SampleIndex++;
-                CorrelatingSampleIndex++;
+                double dist = Math.Abs((double)_AnalysisBuffer[sampleIndex] - _AnalysisBuffer[correlatingSampleIndex]) / Int16.MaxValue;
+                accumDist += dist;
+                sampleIndex++;
+                correlatingSampleIndex++;
             }
 
-            return 1 - AccumDist / _AnalysisBuffer.Length;
+            return 1 - accumDist / _AnalysisBuffer.Length;
+        }
+
+        public void Dispose()
+        {
+            if (_Stream != null)
+            {
+                _Stream.Dispose();
+                _Stream = null;
+            }
+            GC.SuppressFinalize(this);
         }
     }
 
     class CSyncTimer
     {
-        private PT1 _ExternTime;
-        private Stopwatch _Timer;
+        private readonly CPt1 _ExternTime;
+        private readonly Stopwatch _Timer;
         private float _SetValue;
-  
+
         public float Time
         {
             get
@@ -589,20 +594,20 @@ namespace Vocaluxe.Base
             }
         }
 
-        public CSyncTimer(float CurrentTime, float K, float T)
+        public CSyncTimer(float currentTime, float k, float t)
         {
-            _ExternTime = new PT1(CurrentTime, K, T);
+            _ExternTime = new CPt1(currentTime, k, t);
             _Timer = new Stopwatch();
-            _SetValue = CurrentTime;
+            _SetValue = currentTime;
         }
 
-        public float Update(float NewTime)
+        public float Update(float newTime)
         {
-            float et = _ExternTime.Update(NewTime);
+            float et = _ExternTime.Update(newTime);
 
             float dt = Time;
 
-            float diff = _ExternTime.Time - dt;
+            float diff = et - dt;
             if (Math.Abs(diff) > 0.05f)
             {
                 _Timer.Reset();
@@ -620,7 +625,6 @@ namespace Vocaluxe.Base
                     _SetValue -= 0.000025f;
             }
             //Console.WriteLine(diff.ToString());
-
             return dt;
         }
 
@@ -637,22 +641,22 @@ namespace Vocaluxe.Base
         }
     }
 
-    class PT1
+    class CPt1
     {
         private float _CurrentTime;
         private float _OldTime;
 
-        private Stopwatch _STimer;
-        private float _K;
-        private float _T;
+        private readonly Stopwatch _Timer;
+        private readonly float _K;
+        private readonly float _T;
 
         public float Time
         {
             get
             {
                 double nanosecPerTick = (1000.0 * 1000.0 * 1000.0) / Stopwatch.Frequency;
-                long ticks = _STimer.ElapsedTicks;
-                float dt = _STimer.ElapsedMilliseconds / 1000f;
+                long ticks = _Timer.ElapsedTicks;
+                float dt = _Timer.ElapsedMilliseconds / 1000f;
 
                 if (Stopwatch.IsHighResolution && ticks != 0)
                     dt = (float)(ticks * nanosecPerTick / 1000000000.0);
@@ -667,53 +671,53 @@ namespace Vocaluxe.Base
 
                 _CurrentTime = value;
                 _OldTime = value;
-                _STimer.Reset();
-                _STimer.Start();
+                _Timer.Reset();
+                _Timer.Start();
             }
         }
 
-        public PT1(float CurrentTime, float K, float T)
+        public CPt1(float currentTime, float k, float t)
         {
-            _CurrentTime = CurrentTime;
-            _OldTime = CurrentTime;
+            _CurrentTime = currentTime;
+            _OldTime = currentTime;
 
-            _STimer = new Stopwatch();
-            _K = K;
-            _T = T;
+            _Timer = new Stopwatch();
+            _K = k;
+            _T = t;
         }
 
-        public float Update(float NewTime)
+        public float Update(float newTime)
         {
-            _STimer.Stop();
+            _Timer.Stop();
 
             double nanosecPerTick = (1000.0 * 1000.0 * 1000.0) / Stopwatch.Frequency;
-            long ticks = _STimer.ElapsedTicks;
-            float dt = _STimer.ElapsedMilliseconds / 1000f;
+            long ticks = _Timer.ElapsedTicks;
+            float dt = _Timer.ElapsedMilliseconds / 1000f;
 
             if (Stopwatch.IsHighResolution && ticks != 0)
                 dt = (float)(ticks * nanosecPerTick / 1000000000.0);
-                        
-            float Ts = 0f;
-            if (dt > 0)
-                Ts = 1 / (_T / dt + 1);
 
-            _CurrentTime = Ts * (_K * NewTime - _OldTime) + _OldTime;
+            float ts = 0f;
+            if (dt > 0)
+                ts = 1 / (_T / dt + 1);
+
+            _CurrentTime = ts * (_K * newTime - _OldTime) + _OldTime;
             _OldTime = _CurrentTime;
 
-            _STimer.Reset();
-            _STimer.Start();
+            _Timer.Reset();
+            _Timer.Start();
 
             return _CurrentTime;
         }
 
         public void Pause()
         {
-            _STimer.Stop();
+            _Timer.Stop();
         }
 
         public void Resume()
         {
-            _STimer.Start();
+            _Timer.Start();
         }
     }
 }

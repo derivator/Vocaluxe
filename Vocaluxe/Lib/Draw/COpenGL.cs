@@ -1,91 +1,132 @@
-﻿using System;
+﻿#region license
+// /*
+//     This file is part of Vocaluxe.
+// 
+//     Vocaluxe is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+// 
+//     Vocaluxe is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+// 
+//     You should have received a copy of the GNU General Public License
+//     along with Vocaluxe. If not, see <http://www.gnu.org/licenses/>.
+//  */
+#endregion
+
+using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
+using System.Threading;
+using OpenTK;
+using OpenTK.Graphics;
+using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
-using System.Drawing.Imaging;
-using System.Collections;
-using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading;
 using System.Windows.Forms;
-
-using OpenTK;
-using OpenTK.Graphics.OpenGL;
-
 using Vocaluxe.Base;
-using Vocaluxe.Menu;
+using VocaluxeLib;
+using VocaluxeLib.Draw;
+using BeginMode = OpenTK.Graphics.OpenGL.BeginMode;
+using BlendingFactorDest = OpenTK.Graphics.OpenGL.BlendingFactorDest;
+using BlendingFactorSrc = OpenTK.Graphics.OpenGL.BlendingFactorSrc;
+using BufferAccess = OpenTK.Graphics.OpenGL.BufferAccess;
+using BufferTarget = OpenTK.Graphics.OpenGL.BufferTarget;
+using BufferUsageHint = OpenTK.Graphics.OpenGL.BufferUsageHint;
+using ClearBufferMask = OpenTK.Graphics.OpenGL.ClearBufferMask;
+using DepthFunction = OpenTK.Graphics.OpenGL.DepthFunction;
+using EnableCap = OpenTK.Graphics.OpenGL.EnableCap;
+using GL = OpenTK.Graphics.OpenGL.GL;
+using GenerateMipmapTarget = OpenTK.Graphics.OpenGL.GenerateMipmapTarget;
+using KeyPressEventArgs = System.Windows.Forms.KeyPressEventArgs;
+using MatrixMode = OpenTK.Graphics.OpenGL.MatrixMode;
+using PixelFormat = OpenTK.Graphics.OpenGL.PixelFormat;
+using PixelInternalFormat = OpenTK.Graphics.OpenGL.PixelInternalFormat;
+using PixelStoreParameter = OpenTK.Graphics.OpenGL.PixelStoreParameter;
+using PixelType = OpenTK.Graphics.OpenGL.PixelType;
+using TextureMagFilter = OpenTK.Graphics.OpenGL.TextureMagFilter;
+using TextureMinFilter = OpenTK.Graphics.OpenGL.TextureMinFilter;
+using TextureParameterName = OpenTK.Graphics.OpenGL.TextureParameterName;
+using TextureTarget = OpenTK.Graphics.OpenGL.TextureTarget;
 
 namespace Vocaluxe.Lib.Draw
 {
     struct SClientRect
     {
-        public Point location;
-        public int width;
-        public int height;
+        public Point Location;
+        public int Width;
+        public int Height;
     };
 
-    struct STextureQueque
+    struct STextureQueue
     {
-        public int ID;
-        public int width;
-        public int height;
-        public byte[] data;
+        public readonly int ID;
+        public readonly int TextureWidth;
+        public readonly int TextureHeight;
+        public readonly int DataWidth;
+        public readonly int DataHeight;
+        public readonly byte[] Data;
+
+        public STextureQueue(int id, int textureWidth, int textureHeight, int dataWidth, int dataHeight, byte[] data)
+        {
+            ID = id;
+            TextureWidth = textureWidth;
+            TextureHeight = textureHeight;
+            DataWidth = dataWidth;
+            DataHeight = dataHeight;
+            Data = data;
+        }
     }
-    
+
     class COpenGL : Form, IDraw
     {
         #region private vars
+        private const int _MaxID = 100000;
 
-        private CKeys _Keys;
-        private CMouse _Mouse;
+        private readonly CKeys _Keys;
+        private readonly CMouse _Mouse;
         private bool _Run;
-                        
-        GLControl control = null;
 
-        private SClientRect _restore;
-        private bool _fullscreen = false;
+        private readonly GLControl _Control;
 
-        private Dictionary<int, STexture> _Textures;
-        private Queue<int> _IDs;
-        private List<STextureQueque> _Queque;
+        private SClientRect _Restore;
+        private bool _Fullscreen;
 
-        private Object MutexTexture = new Object();
+        private readonly Dictionary<int, CTexture> _Textures = new Dictionary<int, CTexture>();
+        private readonly Queue<int> _IDs = new Queue<int>(_MaxID);
+        private readonly Queue<STextureQueue> _TexturesToLoad = new Queue<STextureQueue>();
 
-        private int h = 1;
-        private int w = 1;
-        private int y = 0;
-        private int x = 0;
+        private readonly Object _MutexTexture = new Object();
 
-        private bool _UsePBO = false;
-        
+        private int _H = 1;
+        private int _W = 1;
+        private int _Y;
+        private int _X;
+
+        private bool _UsePBO;
         #endregion private vars
 
         public COpenGL()
         {
-            this.Icon = new System.Drawing.Icon(Path.Combine(System.Environment.CurrentDirectory, CSettings.sIcon));
+            Icon = new Icon(Path.Combine(Environment.CurrentDirectory, CSettings.Icon));
 
-            _Textures = new Dictionary<int, STexture>();
-            _Queque = new List<STextureQueque>();
-            _IDs = new Queue<int>(1000000);
-
-            for (int i = 1; i < 1000000; i++)
-            {
+            for (int i = 1; i < _MaxID; i++)
                 _IDs.Enqueue(i);
-            }
 
             //Check AA Mode
-            CConfig.AAMode = (EAntiAliasingModes)CheckAntiAliasingMode((int)CConfig.AAMode);
-
-            OpenTK.Graphics.ColorFormat cf = new OpenTK.Graphics.ColorFormat(32);
-            OpenTK.Graphics.GraphicsMode gm;
+            CConfig.AAMode = (EAntiAliasingModes)_CheckAntiAliasingMode((int)CConfig.AAMode);
 
             bool ok = false;
             try
             {
-                gm = new OpenTK.Graphics.GraphicsMode(cf, 24, 0, (int)CConfig.AAMode);
-                control = new GLControl(gm, 2, 1, OpenTK.Graphics.GraphicsContextFlags.Default);
-                if (control.GraphicsMode != null)
+                GraphicsMode gm = new GraphicsMode(32, 24, 0, (int)CConfig.AAMode);
+                _Control = new GLControl(gm, 2, 1, GraphicsContextFlags.Default);
+                if (_Control.GraphicsMode != null)
                     ok = true;
             }
             catch (Exception)
@@ -94,233 +135,156 @@ namespace Vocaluxe.Lib.Draw
             }
 
             if (!ok)
-                control = new GLControl();
+                _Control = new GLControl();
 
-            control.MakeCurrent();
-            control.VSync = (CConfig.VSync == EOffOn.TR_CONFIG_ON);
+            _Control.MakeCurrent();
+            _Control.VSync = CConfig.VSync == EOffOn.TR_CONFIG_ON;
 
-            this.Controls.Add(control);
-                       
-            
+            Controls.Add(_Control);
+
+
             _Keys = new CKeys();
-            this.Paint += new PaintEventHandler(this.OnPaintEvent);
-            this.Closing += new CancelEventHandler(this.OnClosingEvent);
-            this.Resize += new EventHandler(this.OnResizeEvent);
-            
-            control.KeyDown += new KeyEventHandler(this.OnKeyDownEvent);
-            control.PreviewKeyDown += new PreviewKeyDownEventHandler(this.OnPreviewKeyDownEvent);
-            control.KeyPress += new KeyPressEventHandler(this.OnKeyPressEvent);
-            control.KeyUp += new KeyEventHandler(this.OnKeyUpEvent);
-            
-            _Mouse = new CMouse();
-            control.MouseMove += new MouseEventHandler(this.OnMouseMove);
-            control.MouseWheel += new MouseEventHandler(this.OnMouseWheel);
-            control.MouseDown += new MouseEventHandler(this.OnMouseDown);
-            control.MouseUp += new MouseEventHandler(this.OnMouseUp);
-            control.MouseLeave += new EventHandler(this.OnMouseLeave);
-            control.MouseEnter += new EventHandler(this.OnMouseEnter);            
+            Paint += _OnPaintEvent;
+            Closing += _OnClosingEvent;
+            Resize += _OnResizeEvent;
 
-            this.ClientSize = new Size(CConfig.ScreenW, CConfig.ScreenH);
-            this.CenterToScreen();
+            _Control.KeyDown += _OnKeyDownEvent;
+            _Control.PreviewKeyDown += _OnPreviewKeyDownEvent;
+            _Control.KeyPress += _OnKeyPressEvent;
+            _Control.KeyUp += _OnKeyUpEvent;
+
+            _Mouse = new CMouse();
+            _Control.MouseMove += _OnMouseMove;
+            _Control.MouseWheel += _OnMouseWheel;
+            _Control.MouseDown += _OnMouseDown;
+            _Control.MouseUp += _OnMouseUp;
+            _Control.MouseLeave += _OnMouseLeave;
+            _Control.MouseEnter += _OnMouseEnter;
+
+            ClientSize = new Size(CConfig.ScreenW, CConfig.ScreenH);
+            CenterToScreen();
         }
 
         #region Helpers
-        private int CheckAntiAliasingMode(int SetValue)
+        private int _CheckAntiAliasingMode(int setValue)
         {
-            int _Result = 0;
-            OpenTK.Graphics.GraphicsMode _mode = null;
-            bool _done = false;
+            int samples = 0;
 
-            while (!_done && (_Result <= 32))
+            if (setValue > 32)
+                setValue = 32;
+
+            while (samples <= setValue)
             {
+                GraphicsMode mode;
                 try
                 {
-                    _mode = new OpenTK.Graphics.GraphicsMode(16, 0, 0, _Result);
+                    mode = new GraphicsMode(16, 0, 0, samples);
                 }
                 catch (Exception)
                 {
-                    _done = true;
-                    _Result /= 2;
-                    if (_Result == 1)
-                        _Result = 0;
+                    break;
                 }
 
-                if (_mode != null)
-                {
-                    try
-                    {
-                        if (_mode.Samples == _Result)
-                        {
-                            if (_Result == 0)
-                                _Result = 2;
-                            else
-                                _Result *= 2;
-                        }
-                        else
-                        {
-                            _done = true;
-                            _Result /= 2;
-                            if (_Result == 1)
-                                _Result = 0;
-                        }
-                    }
-                    catch (Exception)
-                    {
-                        _done = true;
-                        _Result /= 2;
-                        if (_Result == 1)
-                            _Result = 0;                        
-                    }
-                    
-                }
+                if (mode.Samples != samples)
+                    break;
+                if (samples == 0)
+                    samples = 2;
                 else
-                {
-                    _done = true;
-                    _Result /= 2;
-                    if (_Result == 1)
-                        _Result = 0;
-                }
-
+                    samples *= 2;
             }
 
-            if (_Result > 64)
-                _Result = 32;
-
-            if (SetValue < _Result)
-                return SetValue;
-            else
-                return _Result;
+            if (samples == 2)
+                return 0;
+            return samples / 2;
         }
 
-        private int CheckColorDeep(int SetValue)
+        /*
+        private int _CheckColorDepth(int setValue)
         {
-            int _Result = 8;
-            OpenTK.Graphics.GraphicsMode _mode = null;
-            bool _done = false;
+            int result = 16;
 
-            while (!_done && (_Result <= 32))
+            if (setValue > 32)
+                setValue = 32;
+
+            while (result <= setValue)
             {
+                GraphicsMode mode;
                 try
                 {
-                    _mode = new OpenTK.Graphics.GraphicsMode(_Result, 0, 0, 0);
+                    mode = new GraphicsMode(result, 0, 0, 0);
                 }
                 catch (Exception)
                 {
-                    _done = true;
-                    _Result -= 8;
-                    if (_Result == 0)
-                        _Result = 8;
+                    break;
                 }
-
-                if (_mode != null)
-                {
-                    try
-                    {
-                        if (_mode.ColorFormat == _Result)
-                        {
-                            _Result += 8;
-                        }
-                        else
-                        {
-                            _done = true;
-                            _Result -= 8;
-                            if (_Result == 0)
-                                _Result = 8;
-                        }
-                    }
-                    catch (Exception)
-                    {
-                        _done = true;
-                        _Result -= 8;
-                        if (_Result == 0)
-                            _Result = 8;
-                    }
-
-                }
-                else
-                {
-                    _done = true;
-                    _Result -= 8;
-                    if (_Result == 0)
-                        _Result = 8;
-                }
+                if (mode.ColorFormat != result)
+                    break;
+                result += 8;
             }
 
-            if (_Result > 32)
-                _Result = 32;
+            return result - 8;
+        }
+*/
 
-            if (SetValue < _Result)
-                return SetValue;
+        private void _ToggleFullScreen()
+        {
+            if (!_Fullscreen)
+                _EnterFullScreen();
             else
-                return _Result;
+                _LeaveFullScreen();
         }
 
-        private void ToggleFullScreen()
+        private void _EnterFullScreen()
         {
-            if (!_fullscreen)
-                EnterFullScreen();
-            else
-                LeaveFullScreen();
-        }
-
-        private void EnterFullScreen()
-        {
-            _fullscreen = true;
+            _Fullscreen = true;
             CConfig.FullScreen = EOffOn.TR_CONFIG_ON;
 
-            _restore.location = this.Location;
-            _restore.width = this.Width;
-            _restore.height = this.Height;
+            _Restore.Location = Location;
+            _Restore.Width = Width;
+            _Restore.Height = Height;
 
-            this.FormBorderStyle = FormBorderStyle.None;
+            FormBorderStyle = FormBorderStyle.None;
 
-            int ScreenNr = 0;
+            int screenNr = 0;
             for (int i = 0; i < Screen.AllScreens.Length; i++)
             {
                 Screen scr = Screen.AllScreens[i];
-                if (scr.Bounds.Top <= this.Top && scr.Bounds.Left <= this.Left)
-                    ScreenNr = i;
+                if (scr.Bounds.Top <= Top && scr.Bounds.Left <= Left)
+                    screenNr = i;
             }
 
-            this.DesktopBounds = new Rectangle(Screen.AllScreens[ScreenNr].Bounds.Location,
-                new Size(Screen.AllScreens[ScreenNr].Bounds.Width, Screen.AllScreens[ScreenNr].Bounds.Height));
+            DesktopBounds = new Rectangle(Screen.AllScreens[screenNr].Bounds.Location, new Size(Screen.AllScreens[screenNr].Bounds.Width, Screen.AllScreens[screenNr].Bounds.Height));
 
-            if (this.WindowState == FormWindowState.Maximized)
+            if (WindowState == FormWindowState.Maximized)
             {
-                this.WindowState = FormWindowState.Normal;
-                RResize();
-                this.WindowState = FormWindowState.Maximized;
+                WindowState = FormWindowState.Normal;
+                _DoResize();
+                WindowState = FormWindowState.Maximized;
             }
             else
-                RResize();
+                _DoResize();
 
             CConfig.SaveConfig();
         }
 
-        private void LeaveFullScreen()
+        private void _LeaveFullScreen()
         {
-            _fullscreen = false;
+            _Fullscreen = false;
             CConfig.FullScreen = EOffOn.TR_CONFIG_OFF;
 
-            this.FormBorderStyle = FormBorderStyle.Sizable;
-            this.DesktopBounds = new Rectangle(_restore.location, new Size(_restore.width, _restore.height));
+            FormBorderStyle = FormBorderStyle.Sizable;
+            DesktopBounds = new Rectangle(_Restore.Location, new Size(_Restore.Width, _Restore.Height));
 
             CConfig.SaveConfig();
         }
         #endregion Helpers
 
         #region form events
-        private void OnPaintEvent(object sender, PaintEventArgs e)
-        {
+        private void _OnPaintEvent(object sender, PaintEventArgs e) {}
 
-        }
+        private void _OnResizeEvent(object sender, EventArgs e) {}
 
-        private void OnResizeEvent(object sender, EventArgs e)
-        {
-            
-        }
-
-        private void OnClosingEvent(object sender, CancelEventArgs e)
+        private void _OnClosingEvent(object sender, CancelEventArgs e)
         {
             _Run = false;
         }
@@ -334,8 +298,8 @@ namespace Vocaluxe.Lib.Draw
         {
             base.OnResize(e);
 
-            control.ClientSize = this.ClientSize;
-            RResize();
+            _Control.ClientSize = ClientSize;
+            _DoResize();
         }
 
         protected override void WndProc(ref Message m)
@@ -361,33 +325,33 @@ namespace Vocaluxe.Lib.Draw
         #endregion form events
 
         #region mouse event handlers
-        private void OnMouseMove(object sender, MouseEventArgs e)
+        private void _OnMouseMove(object sender, MouseEventArgs e)
         {
             _Mouse.MouseMove(e);
         }
 
-        private void OnMouseWheel(object sender, MouseEventArgs e)
+        private void _OnMouseWheel(object sender, MouseEventArgs e)
         {
             _Mouse.MouseWheel(e);
         }
 
-        private void OnMouseDown(object sender, MouseEventArgs e)
+        private void _OnMouseDown(object sender, MouseEventArgs e)
         {
             _Mouse.MouseDown(e);
         }
 
-        private void OnMouseUp(object sender, MouseEventArgs e)
+        private void _OnMouseUp(object sender, MouseEventArgs e)
         {
             _Mouse.MouseUp(e);
         }
 
-        private void OnMouseLeave(object sender, EventArgs e)
+        private void _OnMouseLeave(object sender, EventArgs e)
         {
             _Mouse.Visible = false;
             Cursor.Show();
         }
 
-        private void OnMouseEnter(object sender, EventArgs e)
+        private void _OnMouseEnter(object sender, EventArgs e)
         {
             Cursor.Hide();
             _Mouse.Visible = true;
@@ -395,67 +359,66 @@ namespace Vocaluxe.Lib.Draw
         #endregion
 
         #region keyboard event handlers
-        private void OnPreviewKeyDownEvent(object sender, System.Windows.Forms.PreviewKeyDownEventArgs e)
-		{
-			OnKeyDownEvent(sender, new KeyEventArgs(e.KeyData));
-		}
-		
-        private void OnKeyDownEvent(object sender, System.Windows.Forms.KeyEventArgs e)
+        private void _OnPreviewKeyDownEvent(object sender, PreviewKeyDownEventArgs e)
+        {
+            _OnKeyDownEvent(sender, new KeyEventArgs(e.KeyData));
+        }
+
+        private void _OnKeyDownEvent(object sender, KeyEventArgs e)
         {
             _Keys.KeyDown(e);
         }
 
-        		
-        private void OnKeyPressEvent(object sender, System.Windows.Forms.KeyPressEventArgs e)
+        private void _OnKeyPressEvent(object sender, KeyPressEventArgs e)
         {
             _Keys.KeyPress(e);
         }
 
-        private void OnKeyUpEvent(object sender, System.Windows.Forms.KeyEventArgs e)
+        private void _OnKeyUpEvent(object sender, KeyEventArgs e)
         {
             _Keys.KeyUp(e);
         }
         #endregion keyboard event handlers
-      
-        private void RResize()
-        { 
-            h = control.Height;
-            w = control.Width;
-            y = 0;
-            x = 0;
+
+        private void _DoResize()
+        {
+            _H = _Control.Height;
+            _W = _Control.Width;
+            _Y = 0;
+            _X = 0;
 
 
-            if ((float)w / (float)h > CSettings.GetRenderAspect())
+            if (_W / (float)_H > CSettings.GetRenderAspect())
             {
-                w = (int)Math.Round((float)h * CSettings.GetRenderAspect());
-                x = (control.Width - w) / 2;
+                _W = (int)Math.Round(_H * CSettings.GetRenderAspect());
+                _X = (_Control.Width - _W) / 2;
             }
             else
             {
-                h = (int)Math.Round((float)w / CSettings.GetRenderAspect());
-                y = (control.Height - h) / 2;
+                _H = (int)Math.Round(_W / CSettings.GetRenderAspect());
+                _Y = (_Control.Height - _H) / 2;
             }
-            
+
             GL.MatrixMode(MatrixMode.Projection);
             GL.LoadIdentity();
-            GL.Ortho(0, CSettings.iRenderW, CSettings.iRenderH, 0, (double)CSettings.zNear, (double)CSettings.zFar);
-            GL.Viewport(x, y, w, h);
+            GL.Ortho(0, CSettings.RenderW, CSettings.RenderH, 0, CSettings.ZNear, CSettings.ZFar);
+            GL.Viewport(_X, _Y, _W, _H);
         }
 
-
         #region implementation
+
         #region main stuff
         public bool Init()
         {
-            this.Text = CSettings.GetFullVersionText();
-            
+            Text = CSettings.GetFullVersionText();
+
             // Init Texturing
             GL.Enable(EnableCap.Texture2D);
-            
+
             GL.BlendFunc(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha);
             GL.PixelStore(PixelStoreParameter.UnpackAlignment, 1);
 
-            GL.DepthRange(CSettings.zFar, CSettings.zNear);
+            GL.DepthRange(CSettings.ZFar, CSettings.ZNear);
             GL.DepthFunc(DepthFunction.Lequal);
             GL.Enable(EnableCap.DepthTest);
 
@@ -466,78 +429,64 @@ namespace Vocaluxe.Lib.Draw
         {
             _Run = true;
             int delay = 0;
-            this.Show();
+            Show();
 
             if (CConfig.FullScreen == EOffOn.TR_CONFIG_ON)
             {
-                CSettings.bFullScreen = true;
-                EnterFullScreen();
+                CSettings.IsFullScreen = true;
+                _EnterFullScreen();
             }
 
             while (_Run)
             {
+                ClearScreen();
+                if (!CGraphics.Draw())
+                    _Run = false;
+                if (!CGraphics.UpdateGameLogic(_Keys, _Mouse))
+                    _Run = false;
+
+                _Control.SwapBuffers();
+
+                if (CSettings.IsFullScreen != _Fullscreen)
+                    _ToggleFullScreen();
+
+                _CheckQueue();
+
+                if (CTime.IsRunning())
+                    delay = (int)Math.Floor(CConfig.CalcCycleTime() - CTime.GetMilliseconds());
+
+                if (delay >= 1 && CConfig.VSync == EOffOn.TR_CONFIG_OFF)
+                    Thread.Sleep(delay);
+
+                CTime.CalculateFPS();
+                CTime.Restart();
+
                 Application.DoEvents();
-
-                if (_Run)
-                {
-                    ClearScreen();
-                    _Run = _Run && CGraphics.Draw();
-
-                    _Run = CGraphics.UpdateGameLogic(_Keys, _Mouse);
-                    control.SwapBuffers();
-
-                    if ((CSettings.bFullScreen && !_fullscreen) || (!CSettings.bFullScreen && _fullscreen))
-                        ToggleFullScreen();
-
-                    CheckQueque();
-
-                    if (CTime.IsRunning())
-                        delay = (int)Math.Floor(CConfig.CalcCycleTime() - CTime.GetMilliseconds());
-
-                    if (delay >= 1 && CConfig.VSync == EOffOn.TR_CONFIG_OFF)
-                        System.Threading.Thread.Sleep(delay);
-
-                    CTime.CalculateFPS();
-                    CTime.Restart();
-                }
-                else
-                    this.Close();
             }
+            Close();
         }
 
-        public bool Unload()
+        public void Unload()
         {
-            STexture[] textures = new STexture[_Textures.Count];
-            _Textures.Values.CopyTo(textures, 0);
-            for (int i = 0; i < _Textures.Count; i++ )
+            try
             {
-                RemoveTexture(ref textures[i]);
+                Close();
             }
-            
-            return true;
+            catch {}
+            CTexture[] textures = new CTexture[_Textures.Count];
+            _Textures.Values.CopyTo(textures, 0);
+            for (int i = 0; i < _Textures.Count; i++)
+                RemoveTexture(ref textures[i]);
         }
 
         public int GetScreenWidth()
         {
-            return control.Width;
+            return _Control.Width;
         }
 
         public int GetScreenHeight()
         {
-            return control.Height;
-        }
-
-        public RectangleF GetTextBounds(CText text)
-        {
-            return GetTextBounds(text, text.Height);
-        }
-
-        public RectangleF GetTextBounds(CText text, float Height)
-        {
-            CFonts.Height = Height;
-            CFonts.SetFont(text.Fon);
-            CFonts.Style = text.Style;
-            return new RectangleF(text.X, text.Y, CFonts.GetTextWidth(CLanguage.Translate(text.Text)), CFonts.GetTextHeight(CLanguage.Translate(text.Text)));
+            return _Control.Height;
         }
         #endregion main stuff
 
@@ -547,27 +496,15 @@ namespace Vocaluxe.Lib.Draw
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
         }
 
-        public STexture CopyScreen()
+        public CTexture CopyScreen()
         {
-            STexture texture = new STexture(-1);
+            CTexture texture = _GetNewTexture(_W, _H);
 
-            int id = GL.GenTexture();
-            GL.BindTexture(TextureTarget.Texture2D, id);
-            texture.ID = id;
+            texture.Name = GL.GenTexture();
+            GL.BindTexture(TextureTarget.Texture2D, texture.Name);
 
-            texture.width = w;
-            texture.height = h;
-            texture.w2 = (float)MathHelper.NextPowerOfTwo(texture.width);
-            texture.h2 = (float)MathHelper.NextPowerOfTwo(texture.height);
-
-            texture.width_ratio = texture.width / texture.w2;
-            texture.height_ratio = texture.height / texture.h2;
-
-            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, (int)texture.w2, (int)texture.h2, 0,
-                OpenTK.Graphics.OpenGL.PixelFormat.Bgra, PixelType.UnsignedByte, IntPtr.Zero);
-
-            GL.CopyTexSubImage2D(TextureTarget.Texture2D, 0, 0, 0, x, y,
-                (int)texture.width, (int)texture.height);
+            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, texture.W2, texture.H2, 0, PixelFormat.Bgra, PixelType.UnsignedByte, IntPtr.Zero);
+            GL.CopyTexSubImage2D(TextureTarget.Texture2D, 0, 0, 0, _X, _Y, _W, _H);
 
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
@@ -575,31 +512,29 @@ namespace Vocaluxe.Lib.Draw
             GL.BindTexture(TextureTarget.Texture2D, 0);
 
             // Add to Texture List
-            texture.color = new SColorF(1f, 1f, 1f, 1f);
-            texture.rect = new SRectF(0f, 0f, texture.width, texture.height, 0f);
 
-            lock (MutexTexture)
+            lock (_MutexTexture)
             {
-                texture.index = _IDs.Dequeue();
-                _Textures[texture.index] = texture;
+                texture.ID = _IDs.Dequeue();
+                _Textures[texture.ID] = texture;
             }
 
             return texture;
         }
 
-        public void CopyScreen(ref STexture Texture)
+        public void CopyScreen(ref CTexture texture)
         {
-            if (!_TextureExists(ref Texture) || (Texture.width != GetScreenWidth()) || (Texture.height != GetScreenHeight()))
+            //Check for actual texture sizes as it may be downsized compared to OrigSize
+            if (!_TextureExists(texture) || texture.UsedWidth != GetScreenWidth() || texture.UsedHeight != GetScreenHeight())
             {
-                RemoveTexture(ref Texture);
-                Texture = CopyScreen();
+                RemoveTexture(ref texture);
+                texture = CopyScreen();
             }
             else
             {
-                GL.BindTexture(TextureTarget.Texture2D, Texture.ID);
+                GL.BindTexture(TextureTarget.Texture2D, texture.Name);
 
-                GL.CopyTexSubImage2D(TextureTarget.Texture2D, 0, 0, 0, 0, 0,
-                    (int)Texture.width, (int)Texture.height);
+                GL.CopyTexSubImage2D(TextureTarget.Texture2D, 0, 0, 0, 0, 0, GetScreenWidth(), GetScreenHeight());
 
                 GL.BindTexture(TextureTarget.Texture2D, 0);
             }
@@ -607,9 +542,9 @@ namespace Vocaluxe.Lib.Draw
 
         public void MakeScreenShot()
         {
-            string file = "Screenshot_";
-            string path = Path.Combine(Environment.CurrentDirectory, CSettings.sFolderScreenshots);
-            
+            const string file = "Screenshot_";
+            string path = Path.Combine(Environment.CurrentDirectory, CSettings.FolderScreenshots);
+
             int i = 0;
             while (File.Exists(Path.Combine(path, file + i.ToString("00000") + ".bmp")))
                 i++;
@@ -617,33 +552,29 @@ namespace Vocaluxe.Lib.Draw
             int width = GetScreenWidth();
             int height = GetScreenHeight();
 
-            Bitmap screen = new Bitmap(width, height);
+            using (Bitmap screen = new Bitmap(width, height))
+            {
+                BitmapData bmpData = screen.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
 
+                GL.ReadPixels(0, 0, width, height, PixelFormat.Bgra, PixelType.UnsignedByte, bmpData.Scan0);
+                screen.UnlockBits(bmpData);
 
-            BitmapData bmp_data = screen.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-
-            GL.ReadPixels(0, 0, width, height, OpenTK.Graphics.OpenGL.PixelFormat.Bgra, PixelType.UnsignedByte, bmp_data.Scan0);
-            screen.UnlockBits(bmp_data);
-
-            screen.RotateFlip(RotateFlipType.RotateNoneFlipY);
-            screen.Save(Path.Combine(path, file + i.ToString("00000") + ".bmp"), ImageFormat.Bmp);
-            screen.Dispose();
+                screen.RotateFlip(RotateFlipType.RotateNoneFlipY);
+                screen.Save(Path.Combine(path, file + i.ToString("00000") + ".bmp"), ImageFormat.Bmp);
+            }
         }
 
         public void DrawLine(int a, int r, int g, int b, int w, int x1, int y1, int x2, int y2)
         {
+            GL.Enable(EnableCap.Blend);
+            GL.Color4(r, g, b, a * CGraphics.GlobalAlpha);
 
-        }
+            GL.Begin(BeginMode.Lines);
+            GL.Vertex3(x1, y1, CGraphics.ZOffset);
+            GL.Vertex3(x2, y2, CGraphics.ZOffset);
+            GL.End();
 
-        // Draw Basic Text (must be deleted later)
-        public void DrawText(string Text, int x, int y, int h)
-        {
-            DrawText(Text, x, y, h, 0f);
-        }
-
-        public void DrawText(string Text, int x, int y, float h, float z)
-        {
-            CFonts.DrawText(Text, h, x, y, z, new SColorF(1, 1, 1, 1));
+            GL.Disable(EnableCap.Blend);
         }
 
         public void DrawColor(SColorF color, SRectF rect)
@@ -663,7 +594,6 @@ namespace Vocaluxe.Lib.Draw
 
         public void DrawColorReflection(SColorF color, SRectF rect, float space, float height)
         {
-
             if (rect.H < height)
                 height = rect.H;
 
@@ -687,7 +617,7 @@ namespace Vocaluxe.Lib.Draw
 
             GL.Enable(EnableCap.Blend);
 
-            if (rect.Rotation != 0f)
+            if (Math.Abs(rect.Rotation) > 0.001)
             {
                 GL.Translate(0.5f, 0.5f, 0);
                 GL.Rotate(-rect.Rotation, 0f, 0f, 1f);
@@ -711,216 +641,147 @@ namespace Vocaluxe.Lib.Draw
             GL.End();
 
             GL.Disable(EnableCap.Blend);
-
         }
-
         #endregion Basic Draw Methods
 
         #region Textures
 
         #region adding
-        public STexture AddTexture(string TexturePath)
+        public CTexture AddTexture(string texturePath)
         {
-            if (System.IO.File.Exists(TexturePath))
+            if (!File.Exists(texturePath))
             {
-                Bitmap bmp;
-                try
-                {
-                    bmp = new Bitmap(TexturePath);
-                }
-                catch (Exception)
-                { 
-                    CLog.LogError("Error loading Texture: " + TexturePath);
-                    return new STexture(-1);
-                }
-                return AddTexture(bmp, TexturePath);
+                CLog.LogError("Can't find File: " + texturePath);
+                return null;
             }
-            CLog.LogError("Can't find File: " + TexturePath);
-            return new STexture(-1);
+            Bitmap bmp;
+            try
+            {
+                bmp = new Bitmap(texturePath);
+            }
+            catch (Exception)
+            {
+                CLog.LogError("Error loading Texture: " + texturePath);
+                return null;
+            }
+            try
+            {
+                return AddTexture(bmp);
+            }
+            finally
+            {
+                bmp.Dispose();
+            }
         }
 
-        public STexture AddTexture(Bitmap bmp)
+        public CTexture AddTexture(Bitmap bmp)
         {
-            return AddTexture(bmp, String.Empty);
-        }
-
-        public STexture AddTexture(Bitmap bmp, string TexturePath)
-        {
-            STexture texture = new STexture(-1);
-
             if (bmp.Height == 0 || bmp.Width == 0)
-                return texture;
+                return null;
 
-            int MaxSize;
+            int maxSize;
             switch (CConfig.TextureQuality)
             {
                 case ETextureQuality.TR_CONFIG_TEXTURE_LOWEST:
-                    MaxSize = 128;
+                    maxSize = 128;
                     break;
                 case ETextureQuality.TR_CONFIG_TEXTURE_LOW:
-                    MaxSize = 256;
+                    maxSize = 256;
                     break;
                 case ETextureQuality.TR_CONFIG_TEXTURE_MEDIUM:
-                    MaxSize = 512;
+                    maxSize = 512;
                     break;
                 case ETextureQuality.TR_CONFIG_TEXTURE_HIGH:
-                    MaxSize = 1024;
+                    maxSize = 1024;
                     break;
                 case ETextureQuality.TR_CONFIG_TEXTURE_HIGHEST:
-                    MaxSize = 2048;
+                    maxSize = 2048;
                     break;
                 default:
-                    MaxSize = 512;
+                    maxSize = 512;
                     break;
             }
 
-            int w = bmp.Width;
-            int h = bmp.Height;
+            int w = Math.Min(bmp.Width, maxSize);
+            int h = Math.Min(bmp.Height, maxSize);
+            w = MathHelper.NextPowerOfTwo(w);
+            h = MathHelper.NextPowerOfTwo(h);
 
-            if (w > MaxSize)
+            CTexture texture = new CTexture(bmp.Width, bmp.Height, w, h, true) {Name = GL.GenTexture()};
+
+            GL.BindTexture(TextureTarget.Texture2D, texture.Name);
+            Bitmap bmp2 = null;
+            try
             {
-                h = (int)Math.Round((float)MaxSize / bmp.Width * bmp.Height);
-                w = MaxSize;
-            }
+                if (bmp.Width != w || bmp.Height != h)
+                {
+                    //Create a new Bitmap with the new sizes
+                    bmp2 = new Bitmap(w, h);
+                    //Scale the texture
+                    using (Graphics g = Graphics.FromImage(bmp2))
+                    {
+                        g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                        g.SmoothingMode = SmoothingMode.HighQuality;
+                        g.DrawImage(bmp, new Rectangle(0, 0, bmp2.Width, bmp2.Height));
+                    }
+                    bmp = bmp2;
+                }
 
-            if (h > MaxSize)
+                BitmapData bmpData = bmp.LockBits(new Rectangle(0, 0, bmp.Width, bmp.Height), ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+                GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, texture.W2, texture.H2, 0, PixelFormat.Bgra, PixelType.UnsignedByte, IntPtr.Zero);
+                GL.TexSubImage2D(TextureTarget.Texture2D, 0, 0, 0, bmpData.Width, bmpData.Height, PixelFormat.Bgra, PixelType.UnsignedByte, bmpData.Scan0);
+                bmp.UnlockBits(bmpData);
+            }
+            finally
             {
-                w = (int)Math.Round((float)MaxSize / bmp.Height * bmp.Width);
-                h = MaxSize;
+                if (bmp2 != null)
+                    bmp2.Dispose();
             }
-
-            int id = GL.GenTexture();
-            GL.BindTexture(TextureTarget.Texture2D, id);
-            texture.ID = id;
-
-            texture.width = w;
-            texture.height = h;
-
-            texture.w2 = (float)MathHelper.NextPowerOfTwo(w);
-            texture.h2 = (float)MathHelper.NextPowerOfTwo(h);
-
-            Bitmap bmp2 = new Bitmap((int)texture.w2, (int)texture.h2);
-            Graphics g = Graphics.FromImage(bmp2);
-            g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
-            g.DrawImage(bmp, new Rectangle(0, 0, bmp2.Width, bmp2.Height));
-            g.Dispose();
-
-            texture.width_ratio = 1f;
-            texture.height_ratio = 1f;
-
-            BitmapData bmp_data = bmp2.LockBits(new Rectangle(0, 0, bmp2.Width, bmp2.Height), ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-
-
-            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, (int)texture.w2, (int)texture.h2, 0,
-                OpenTK.Graphics.OpenGL.PixelFormat.Bgra, PixelType.UnsignedByte, IntPtr.Zero);
-
-            GL.TexSubImage2D(TextureTarget.Texture2D, 0, 0, 0, bmp_data.Width, bmp_data.Height,
-                OpenTK.Graphics.OpenGL.PixelFormat.Bgra, PixelType.UnsignedByte, bmp_data.Scan0);
-
-            bmp2.UnlockBits(bmp_data);
-            bmp2.Dispose();
 
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureParameterName.ClampToEdge);
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureParameterName.ClampToEdge);
 
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
-
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.LinearMipmapLinear);
-                    //GL.GenerateMipmap(GenerateMipmapTarget.Texture2D);
             GL.Ext.GenerateMipmap(GenerateMipmapTarget.Texture2D);
-                
-
-            // Add to Texture List
-            texture.color = new SColorF(1f, 1f, 1f, 1f);
-            texture.rect = new SRectF(0f, 0f, texture.width, texture.height, 0f);
-            texture.TexturePath = String.Empty;
-
-            lock (MutexTexture)
-            {
-                texture.index = _IDs.Dequeue();
-                _Textures[texture.index] = texture;
-            }
-
-            return texture;
-        }
-
-        public STexture AddTexture(int W, int H, IntPtr Data)
-        {
-            STexture texture = new STexture(-1);
-
-            if (_UsePBO)
-            {
-                try
-                {
-                    GL.GenBuffers(1, out texture.PBO);
-                    GL.BindBuffer(BufferTarget.PixelUnpackBuffer, texture.PBO);
-                    GL.BufferData(BufferTarget.PixelUnpackBuffer, (IntPtr)(W * H * 4), IntPtr.Zero, BufferUsageHint.StreamDraw);
-                    GL.BindBuffer(BufferTarget.PixelUnpackBuffer, 0);
-                }
-                catch (Exception)
-                {
-                    _UsePBO = false;
-                }
-            }
-
-            int id = GL.GenTexture();
-            GL.BindTexture(TextureTarget.Texture2D, id);
-            texture.ID = id;
-
-            texture.width = W;
-            texture.height = H;
-            texture.w2 = (float)MathHelper.NextPowerOfTwo(texture.width);
-            texture.h2 = (float)MathHelper.NextPowerOfTwo(texture.height);
-
-            texture.width_ratio = texture.width / texture.w2;
-            texture.height_ratio = texture.height / texture.h2;
-
-            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, (int)texture.w2, (int)texture.h2, 0,
-                OpenTK.Graphics.OpenGL.PixelFormat.Bgra, PixelType.UnsignedByte, IntPtr.Zero);
-
-            GL.TexSubImage2D(TextureTarget.Texture2D, 0, 0, 0, W, H,
-                OpenTK.Graphics.OpenGL.PixelFormat.Bgra, PixelType.UnsignedByte, Data);
-
-
-            //GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureParameterName.ClampToEdge);
-            //GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureParameterName.ClampToEdge);
-
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
-
-            //GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.LinearMipmapLinear);
-            //GL.GenerateMipmap(GenerateMipmapTarget.Texture2D);
-            //GL.Ext.GenerateMipmap(GenerateMipmapTarget.Texture2D);
 
             GL.BindTexture(TextureTarget.Texture2D, 0);
-
             // Add to Texture List
-            texture.color = new SColorF(1f, 1f, 1f, 1f);
-            texture.rect = new SRectF(0f, 0f, texture.width, texture.height, 0f);
             texture.TexturePath = String.Empty;
 
-            lock (MutexTexture)
+            lock (_MutexTexture)
             {
-                texture.index = _IDs.Dequeue();
-                _Textures[texture.index] = texture;
+                texture.ID = _IDs.Dequeue();
+                _Textures[texture.ID] = texture;
             }
-            
+
             return texture;
         }
 
-        public STexture AddTexture(int W, int H, ref byte[] Data)
+        public CTexture AddTexture(int w, int h, byte[] data)
         {
-            STexture texture = new STexture(-1);
+            CTexture texture = _GetNewTexture(w, h);
 
+            _CreateTexture(texture, w, h, data);
+
+            lock (_MutexTexture)
+            {
+                texture.ID = _IDs.Dequeue();
+                _Textures[texture.ID] = texture;
+            }
+
+            return texture;
+        }
+
+        private void _CreateTexture(CTexture texture, int w, int h, byte[] data)
+        {
             if (_UsePBO)
             {
                 try
                 {
                     GL.GenBuffers(1, out texture.PBO);
                     GL.BindBuffer(BufferTarget.PixelUnpackBuffer, texture.PBO);
-                    GL.BufferData(BufferTarget.PixelUnpackBuffer, (IntPtr)Data.Length, IntPtr.Zero, BufferUsageHint.StreamDraw);
+                    GL.BufferData(BufferTarget.PixelUnpackBuffer, (IntPtr)data.Length, IntPtr.Zero, BufferUsageHint.StreamDraw);
                     GL.BindBuffer(BufferTarget.PixelUnpackBuffer, 0);
                 }
                 catch (Exception)
@@ -930,246 +791,147 @@ namespace Vocaluxe.Lib.Draw
                 }
             }
 
-            int id = GL.GenTexture();
-            GL.BindTexture(TextureTarget.Texture2D, id);
-            texture.ID = id;
+            texture.Name = GL.GenTexture();
+            GL.BindTexture(TextureTarget.Texture2D, texture.Name);
 
-            texture.width = W;
-            texture.height = H;
-            texture.w2 = (float)MathHelper.NextPowerOfTwo(texture.width);
-            texture.h2 = (float)MathHelper.NextPowerOfTwo(texture.height);
+            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, texture.W2, texture.H2, 0, PixelFormat.Bgra, PixelType.UnsignedByte, IntPtr.Zero);
+            GL.TexSubImage2D(TextureTarget.Texture2D, 0, 0, 0, w, h, PixelFormat.Bgra, PixelType.UnsignedByte, data);
 
-            texture.width_ratio = texture.width / texture.w2;
-            texture.height_ratio = texture.height / texture.h2;
-
-            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, (int)texture.w2, (int)texture.h2, 0,
-                OpenTK.Graphics.OpenGL.PixelFormat.Bgra, PixelType.UnsignedByte, IntPtr.Zero);
-
-            GL.TexSubImage2D(TextureTarget.Texture2D, 0, 0, 0, W, H,
-                OpenTK.Graphics.OpenGL.PixelFormat.Bgra, PixelType.UnsignedByte, Data);
-
-
-            //GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureParameterName.ClampToEdge);
-            //GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureParameterName.ClampToEdge);
-
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureParameterName.ClampToEdge);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureParameterName.ClampToEdge);
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
-
-            //GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.LinearMipmapLinear);
-            //GL.GenerateMipmap(GenerateMipmapTarget.Texture2D);
-            //GL.Ext.GenerateMipmap(GenerateMipmapTarget.Texture2D);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.LinearMipmapLinear);
+            GL.Ext.GenerateMipmap(GenerateMipmapTarget.Texture2D);
 
             GL.BindTexture(TextureTarget.Texture2D, 0);
+        }
 
-            // Add to Texture List
-            texture.color = new SColorF(1f, 1f, 1f, 1f);
-            texture.rect = new SRectF(0f, 0f, texture.width, texture.height, 0f);
-            texture.TexturePath = String.Empty;
+        public CTexture EnqueueTexture(int w, int h, byte[] data)
+        {
+            CTexture texture = _GetNewTexture(w, h);
 
-            lock (MutexTexture)
+            lock (_MutexTexture)
             {
-                texture.index = _IDs.Dequeue();
-                _Textures[texture.index] = texture;
+                texture.ID = _IDs.Dequeue();
+                STextureQueue queue = new STextureQueue(texture.ID, texture.W2, texture.H2, w, h, data);
+                _TexturesToLoad.Enqueue(queue);
+                _Textures[texture.ID] = texture;
             }
-            
+
             return texture;
         }
 
-        public STexture QuequeTexture(int W, int H, ref byte[] Data)
+        private static CTexture _GetNewTexture(int w, int h)
         {
-            STexture texture = new STexture(-1);
-            STextureQueque queque = new STextureQueque();
-
-            queque.data = Data;
-            queque.height = H;
-            queque.width = W;
-            texture.height = H;
-            texture.width = W;
-
-            lock (MutexTexture)
-	        {
-                texture.index = _IDs.Dequeue();
-                queque.ID = texture.index;
-                _Queque.Add(queque);
-                _Textures[texture.index] = texture;
-	        }
-            
-            return texture;
+            return new CTexture(w, h, MathHelper.NextPowerOfTwo(w), MathHelper.NextPowerOfTwo(h));
         }
         #endregion adding
 
         #region updating
-        public bool UpdateTexture(ref STexture Texture, IntPtr Data)
+        public bool UpdateTexture(CTexture texture, int w, int h, byte[] data)
         {
-            if (_TextureExists(ref Texture))
+            //Check if texture exists and extend matches
+            if (!_TextureExists(texture) || texture.UsedWidth != w || texture.UsedHeight != h)
+                return false;
+            if (_UsePBO)
             {
-                if (_UsePBO)
-                {
-                    try
-                    {
-                        GL.BindBuffer(BufferTarget.PixelUnpackBuffer, Texture.PBO);
-                                
-                        IntPtr Buffer = GL.MapBuffer(BufferTarget.PixelUnpackBuffer, BufferAccess.WriteOnly);
-                        byte[] d = new byte[(int)Texture.height * (int)Texture.width * 4];
+                GL.BindBuffer(BufferTarget.PixelUnpackBuffer, texture.PBO);
 
-                        Marshal.Copy(Data, d, 0, (int)Texture.height * (int)Texture.width * 4);
-                        Marshal.Copy(d, 0, Buffer, (int)Texture.height * (int)Texture.width * 4);
-                                
-                        GL.UnmapBuffer(BufferTarget.PixelUnpackBuffer);
+                IntPtr buffer = GL.MapBuffer(BufferTarget.PixelUnpackBuffer, BufferAccess.WriteOnly);
+                Marshal.Copy(data, 0, buffer, data.Length);
 
-                        GL.BindTexture(TextureTarget.Texture2D, Texture.ID);
-                        GL.TexSubImage2D(TextureTarget.Texture2D, 0, 0, 0, (int)Texture.width, (int)Texture.height,
-                            OpenTK.Graphics.OpenGL.PixelFormat.Bgra, PixelType.UnsignedByte, IntPtr.Zero);
+                GL.UnmapBuffer(BufferTarget.PixelUnpackBuffer);
 
-                        GL.BindTexture(TextureTarget.Texture2D, 0);
-                        GL.BindBuffer(BufferTarget.PixelUnpackBuffer, 0);
+                GL.BindTexture(TextureTarget.Texture2D, texture.Name);
 
-                        return true;
-                    }
-                    catch (Exception)
-                    {
-                        _UsePBO = false;
-                    }
-                }
+                GL.TexSubImage2D(TextureTarget.Texture2D, 0, 0, 0, w, h, PixelFormat.Bgra, PixelType.UnsignedByte, IntPtr.Zero);
 
-                GL.BindTexture(TextureTarget.Texture2D, Texture.ID);
-
-                GL.TexSubImage2D(TextureTarget.Texture2D, 0, 0, 0, (int)Texture.width, (int)Texture.height,
-                    OpenTK.Graphics.OpenGL.PixelFormat.Bgra, PixelType.UnsignedByte, Data);
-
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureParameterName.ClampToEdge);
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureParameterName.ClampToEdge);
-
-                //GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
-
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.LinearMipmapLinear);
-                //GL.GenerateMipmap(GenerateMipmapTarget.Texture2D);
                 GL.Ext.GenerateMipmap(GenerateMipmapTarget.Texture2D);
 
                 GL.BindTexture(TextureTarget.Texture2D, 0);
-
-                return true;
-            }         
-            return false;
-        }
-
-        public bool UpdateTexture(ref STexture Texture, ref byte[] Data)
-        {
-            if (_TextureExists(ref Texture))
-            {
-                if (_UsePBO)
-                {
-                    try
-                    {
-                        GL.BindBuffer(BufferTarget.PixelUnpackBuffer, Texture.PBO);
-                                
-                        IntPtr Buffer = GL.MapBuffer(BufferTarget.PixelUnpackBuffer, BufferAccess.WriteOnly);
-                        Marshal.Copy(Data, 0, Buffer, Data.Length);
-
-                        GL.UnmapBuffer(BufferTarget.PixelUnpackBuffer);
-
-                        GL.BindTexture(TextureTarget.Texture2D, Texture.ID);
-                        GL.TexSubImage2D(TextureTarget.Texture2D, 0, 0, 0, (int)Texture.width, (int)Texture.height,
-                            OpenTK.Graphics.OpenGL.PixelFormat.Bgra, PixelType.UnsignedByte, IntPtr.Zero);
-
-                        GL.BindTexture(TextureTarget.Texture2D, 0);
-                        GL.BindBuffer(BufferTarget.PixelUnpackBuffer, 0);
-
-                        return true;
-                    }
-                    catch (Exception)
-                    {
-                        throw;
-                        //_UsePBO = false;
-                    }
-                }
-
-                GL.BindTexture(TextureTarget.Texture2D, Texture.ID);
-
-                GL.TexSubImage2D(TextureTarget.Texture2D, 0, 0, 0, (int)Texture.width, (int)Texture.height,
-                    OpenTK.Graphics.OpenGL.PixelFormat.Bgra, PixelType.UnsignedByte, Data);
-
-                //GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureParameterName.ClampToEdge);
-                //GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureParameterName.ClampToEdge);
-
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
-
-                //GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.LinearMipmapLinear);
-                //GL.GenerateMipmap(GenerateMipmapTarget.Texture2D);
-                //GL.Ext.GenerateMipmap(GenerateMipmapTarget.Texture2D);
-
-                GL.BindTexture(TextureTarget.Texture2D, 0);
+                GL.BindBuffer(BufferTarget.PixelUnpackBuffer, 0);
 
                 return true;
             }
-            return false;
+
+            GL.BindTexture(TextureTarget.Texture2D, texture.Name);
+
+            GL.TexSubImage2D(TextureTarget.Texture2D, 0, 0, 0, w, h, PixelFormat.Bgra, PixelType.UnsignedByte, data);
+
+            GL.Ext.GenerateMipmap(GenerateMipmapTarget.Texture2D);
+
+            GL.BindTexture(TextureTarget.Texture2D, 0);
+
+            return true;
+        }
+
+        public bool UpdateOrAddTexture(ref CTexture texture, int w, int h, byte[] data)
+        {
+            if (!UpdateTexture(texture, w, h, data))
+            {
+                RemoveTexture(ref texture);
+                texture = AddTexture(w, h, data);
+            }
+            return true;
         }
         #endregion updating
 
-        public void RemoveTexture(ref STexture Texture)
+        public void RemoveTexture(ref CTexture texture)
         {
-            if ((Texture.index > 0) && (_Textures.Count > 0))
+            if (_TextureExists(texture, false))
             {
-                lock (MutexTexture)
+                lock (_MutexTexture)
                 {
-                    _IDs.Enqueue(Texture.index);
-                    GL.DeleteTexture(Texture.ID);
-                    if (Texture.PBO > 0)
-                        GL.DeleteBuffers(1, ref Texture.PBO);
-                    _Textures.Remove(Texture.index);
-                    Texture.index = -1;
-                    Texture.ID = -1;
+                    _IDs.Enqueue(texture.ID);
+                    GL.DeleteTexture(texture.Name);
+                    if (texture.PBO > 0)
+                        GL.DeleteBuffers(1, ref texture.PBO);
+                    _Textures.Remove(texture.ID);
                 }
             }
+            texture = null;
         }
 
-        private bool _TextureExists(ref STexture Texture)
+        private bool _TextureExists(CTexture texture, bool checkIfLoaded = true)
         {
-            lock (MutexTexture)
+            lock (_MutexTexture)
             {
-                if(_Textures.ContainsKey((Texture.index)))
+                if (texture != null && _Textures.ContainsKey(texture.ID))
                 {
-                    if(_Textures[Texture.index].ID > 0)
-                    {
-                        Texture = _Textures[Texture.index];
+                    if (!checkIfLoaded || _Textures[texture.ID].Name > 0)
                         return true;
-                    }
                 }
             }
             return false;
         }
 
         #region drawing
-        public void DrawTexture(STexture Texture)
+        public void DrawTexture(CTexture texture)
         {
-            DrawTexture(Texture, Texture.rect, Texture.color);
+            if (texture == null)
+                return;
+            DrawTexture(texture, texture.Rect, texture.Color);
         }
 
-        public void DrawTexture(STexture Texture, SRectF rect)
+        public void DrawTexture(CTexture texture, SRectF rect)
         {
-            DrawTexture(Texture, rect, Texture.color, false);
+            if (texture == null)
+                return;
+            DrawTexture(texture, rect, texture.Color);
         }
 
-        public void DrawTexture(STexture Texture, SRectF rect, SColorF color)
+        public void DrawTexture(CTexture texture, SRectF rect, SColorF color, bool mirrored = false)
         {
-            DrawTexture(Texture, rect, color, false);
+            DrawTexture(texture, rect, color, new SRectF(0, 0, CSettings.RenderW, CSettings.RenderH, rect.Z), mirrored);
         }
 
-        public void DrawTexture(STexture Texture, SRectF rect, SColorF color, SRectF bounds)
+        public void DrawTexture(CTexture texture, SRectF rect, SColorF color, SRectF bounds, bool mirrored = false)
         {
-            DrawTexture(Texture, rect, color, bounds, false);
-        }
+            if (!_TextureExists(texture))
+                return;
 
-        public void DrawTexture(STexture Texture, SRectF rect, SColorF color, bool mirrored)
-        {
-            DrawTexture(Texture, rect, color, new SRectF(0, 0, CSettings.iRenderW, CSettings.iRenderH, rect.Z), mirrored);
-        }
-
-        public void DrawTexture(STexture Texture, SRectF rect, SColorF color, SRectF bounds, bool mirrored)
-        {
-            if (rect.W == 0f || rect.H == 0f || bounds.H == 0f || bounds.W == 0f || color.A == 0f)
+            if (Math.Abs(rect.W) < float.Epsilon || Math.Abs(rect.H) < float.Epsilon || Math.Abs(bounds.H) < float.Epsilon || Math.Abs(bounds.W) < float.Epsilon ||
+                Math.Abs(color.A) < float.Epsilon)
                 return;
 
             if (bounds.X > rect.X + rect.W || bounds.X + bounds.W < rect.X)
@@ -1178,139 +940,139 @@ namespace Vocaluxe.Lib.Draw
             if (bounds.Y > rect.Y + rect.H || bounds.Y + bounds.H < rect.Y)
                 return;
 
-            if (_TextureExists(ref Texture))
+            GL.BindTexture(TextureTarget.Texture2D, texture.Name);
+
+            float x1 = (bounds.X - rect.X) / rect.W * texture.WidthRatio;
+            float x2 = (bounds.X + bounds.W - rect.X) / rect.W * texture.WidthRatio;
+            float y1 = (bounds.Y - rect.Y) / rect.H * texture.HeightRatio;
+            float y2 = (bounds.Y + bounds.H - rect.Y) / rect.H * texture.HeightRatio;
+
+            if (x1 < 0)
+                x1 = 0f;
+
+            if (x2 > texture.WidthRatio)
+                x2 = texture.WidthRatio;
+
+            if (y1 < 0)
+                y1 = 0f;
+
+            if (y2 > texture.HeightRatio)
+                y2 = texture.HeightRatio;
+
+
+            float rx1 = rect.X;
+            float rx2 = rect.X + rect.W;
+            float ry1 = rect.Y;
+            float ry2 = rect.Y + rect.H;
+
+            if (rx1 < bounds.X)
+                rx1 = bounds.X;
+
+            if (rx2 > bounds.X + bounds.W)
+                rx2 = bounds.X + bounds.W;
+
+            if (ry1 < bounds.Y)
+                ry1 = bounds.Y;
+
+            if (ry2 > bounds.Y + bounds.H)
+                ry2 = bounds.Y + bounds.H;
+
+            GL.Enable(EnableCap.Blend);
+            GL.Color4(color.R, color.G, color.B, color.A * CGraphics.GlobalAlpha);
+
+            GL.MatrixMode(MatrixMode.Texture);
+            GL.PushMatrix();
+
+            if (Math.Abs(rect.Rotation) > float.Epsilon)
             {
-                GL.BindTexture(TextureTarget.Texture2D, Texture.ID);
-
-                float x1 = (bounds.X - rect.X) / rect.W * Texture.width_ratio;
-                float x2 = (bounds.X + bounds.W - rect.X) / rect.W * Texture.width_ratio;
-                float y1 = (bounds.Y - rect.Y) / rect.H * Texture.height_ratio;
-                float y2 = (bounds.Y + bounds.H - rect.Y) / rect.H * Texture.height_ratio;
-
-                if (x1 < 0)
-                    x1 = 0f;
-
-                if (x2 > Texture.width_ratio)
-                    x2 = Texture.width_ratio;
-
-                if (y1 < 0)
-                    y1 = 0f;
-
-                if (y2 > Texture.height_ratio)
-                    y2 = Texture.height_ratio;
-
-
-                float rx1 = rect.X;
-                float rx2 = rect.X + rect.W;
-                float ry1 = rect.Y;
-                float ry2 = rect.Y + rect.H;
-
-                if (rx1 < bounds.X)
-                    rx1 = bounds.X;
-
-                if (rx2 > bounds.X + bounds.W)
-                    rx2 = bounds.X + bounds.W;
-
-                if (ry1 < bounds.Y)
-                    ry1 = bounds.Y;
-
-                if (ry2 > bounds.Y + bounds.H)
-                    ry2 = bounds.Y + bounds.H;
-
-                GL.Enable(EnableCap.Blend);
-                GL.Color4(color.R, color.G, color.B, color.A * CGraphics.GlobalAlpha);
-
-                GL.MatrixMode(MatrixMode.Texture);
-                GL.PushMatrix();
-
-                if (rect.Rotation != 0f)
-                {
-                    GL.Translate(0.5f, 0.5f, 0);
-                    GL.Rotate(-rect.Rotation, 0f, 0f, 1f);
-                    GL.Translate(-0.5f, -0.5f, 0);
-                }
-
-                if (!mirrored)
-                {
-                    GL.Begin(BeginMode.Quads);
-
-                    GL.TexCoord2(x1, y1);
-                    GL.Vertex3(rx1, ry1, rect.Z + CGraphics.ZOffset);
-
-                    GL.TexCoord2(x1, y2);
-                    GL.Vertex3(rx1, ry2, rect.Z + CGraphics.ZOffset);
-
-                    GL.TexCoord2(x2, y2);
-                    GL.Vertex3(rx2, ry2, rect.Z + CGraphics.ZOffset);
-
-                    GL.TexCoord2(x2, y1);
-                    GL.Vertex3(rx2, ry1, rect.Z + CGraphics.ZOffset);
-
-                    GL.End();
-                }
-                else
-                {
-                    GL.Begin(BeginMode.Quads);
-
-                    GL.TexCoord2(x2, y2);
-                    GL.Vertex3(rx2, ry1, rect.Z + CGraphics.ZOffset);
-
-                    GL.TexCoord2(x2, y1);
-                    GL.Vertex3(rx2, ry2, rect.Z + CGraphics.ZOffset);
-
-                    GL.TexCoord2(x1, y1);
-                    GL.Vertex3(rx1, ry2, rect.Z + CGraphics.ZOffset);
-
-                    GL.TexCoord2(x1, y2);
-                    GL.Vertex3(rx1, ry1, rect.Z + CGraphics.ZOffset);
-
-                    GL.End();
-                }
-
-                GL.PopMatrix();
-
-                GL.Disable(EnableCap.Blend);
-                GL.BindTexture(TextureTarget.Texture2D, 0);
+                GL.Translate(0.5f, 0.5f, 0);
+                GL.Rotate(-rect.Rotation, 0f, 0f, 1f);
+                GL.Translate(-0.5f, -0.5f, 0);
             }
-        }
 
-        public void DrawTexture(STexture Texture, SRectF rect, SColorF color, float begin, float end)
-        {
-            if (_TextureExists(ref Texture))
+            if (!mirrored)
             {
-                GL.BindTexture(TextureTarget.Texture2D, Texture.ID);
-
-                GL.Enable(EnableCap.Blend);
-                GL.Color4(color.R, color.G, color.B, color.A * CGraphics.GlobalAlpha);
-
-
                 GL.Begin(BeginMode.Quads);
 
-                GL.TexCoord2(0f + begin * Texture.width_ratio, 0f);
-                GL.Vertex3(rect.X + begin * rect.W, rect.Y, rect.Z + CGraphics.ZOffset);
+                GL.TexCoord2(x1, y1);
+                GL.Vertex3(rx1, ry1, rect.Z + CGraphics.ZOffset);
 
-                GL.TexCoord2(0f + begin * Texture.width_ratio, Texture.height_ratio);
-                GL.Vertex3(rect.X + begin * rect.W, rect.Y + rect.H, rect.Z + CGraphics.ZOffset);
+                GL.TexCoord2(x1, y2);
+                GL.Vertex3(rx1, ry2, rect.Z + CGraphics.ZOffset);
 
-                GL.TexCoord2(Texture.width_ratio * end, Texture.height_ratio);
-                GL.Vertex3(rect.X + end * rect.W, rect.Y + rect.H, rect.Z + CGraphics.ZOffset);
+                GL.TexCoord2(x2, y2);
+                GL.Vertex3(rx2, ry2, rect.Z + CGraphics.ZOffset);
 
-                GL.TexCoord2(Texture.width_ratio * end, 0f);
-                GL.Vertex3(rect.X + end * rect.W, rect.Y, rect.Z + CGraphics.ZOffset);
+                GL.TexCoord2(x2, y1);
+                GL.Vertex3(rx2, ry1, rect.Z + CGraphics.ZOffset);
 
                 GL.End();
-
-
-                GL.Disable(EnableCap.Blend);
-                GL.BindTexture(TextureTarget.Texture2D, 0);
             }
+            else
+            {
+                GL.Begin(BeginMode.Quads);
+
+                GL.TexCoord2(x2, y2);
+                GL.Vertex3(rx2, ry1, rect.Z + CGraphics.ZOffset);
+
+                GL.TexCoord2(x2, y1);
+                GL.Vertex3(rx2, ry2, rect.Z + CGraphics.ZOffset);
+
+                GL.TexCoord2(x1, y1);
+                GL.Vertex3(rx1, ry2, rect.Z + CGraphics.ZOffset);
+
+                GL.TexCoord2(x1, y2);
+                GL.Vertex3(rx1, ry1, rect.Z + CGraphics.ZOffset);
+
+                GL.End();
+            }
+
+            GL.PopMatrix();
+
+            GL.Disable(EnableCap.Blend);
+            GL.BindTexture(TextureTarget.Texture2D, 0);
         }
 
-        public void DrawTextureReflection(STexture Texture, SRectF rect, SColorF color, SRectF bounds, float space, float height)
+        public void DrawTexture(CTexture texture, SRectF rect, SColorF color, float begin, float end)
         {
-            if (rect.W == 0f || rect.H == 0f || bounds.H == 0f || bounds.W == 0f || color.A == 0f || height <= 0f)
+            if (!_TextureExists(texture))
                 return;
-            
+            GL.BindTexture(TextureTarget.Texture2D, texture.Name);
+
+            GL.Enable(EnableCap.Blend);
+            GL.Color4(color.R, color.G, color.B, color.A * CGraphics.GlobalAlpha);
+
+
+            GL.Begin(BeginMode.Quads);
+
+            GL.TexCoord2(0f + begin * texture.WidthRatio, 0f);
+            GL.Vertex3(rect.X + begin * rect.W, rect.Y, rect.Z + CGraphics.ZOffset);
+
+            GL.TexCoord2(0f + begin * texture.WidthRatio, texture.HeightRatio);
+            GL.Vertex3(rect.X + begin * rect.W, rect.Y + rect.H, rect.Z + CGraphics.ZOffset);
+
+            GL.TexCoord2(texture.WidthRatio * end, texture.HeightRatio);
+            GL.Vertex3(rect.X + end * rect.W, rect.Y + rect.H, rect.Z + CGraphics.ZOffset);
+
+            GL.TexCoord2(texture.WidthRatio * end, 0f);
+            GL.Vertex3(rect.X + end * rect.W, rect.Y, rect.Z + CGraphics.ZOffset);
+
+            GL.End();
+
+
+            GL.Disable(EnableCap.Blend);
+            GL.BindTexture(TextureTarget.Texture2D, 0);
+        }
+
+        public void DrawTextureReflection(CTexture texture, SRectF rect, SColorF color, SRectF bounds, float space, float height)
+        {
+            if (!_TextureExists(texture))
+                return;
+
+            if (Math.Abs(rect.W) < float.Epsilon || Math.Abs(rect.H) < float.Epsilon || Math.Abs(bounds.H) < float.Epsilon || Math.Abs(bounds.W) < float.Epsilon ||
+                Math.Abs(color.A) < float.Epsilon || height <= float.Epsilon)
+                return;
+
             if (bounds.X > rect.X + rect.W || bounds.X + bounds.W < rect.X)
                 return;
 
@@ -1320,162 +1082,102 @@ namespace Vocaluxe.Lib.Draw
             if (height > bounds.H)
                 height = bounds.H;
 
-            if (_TextureExists(ref Texture))
+            GL.BindTexture(TextureTarget.Texture2D, texture.Name);
+
+            float x1 = (bounds.X - rect.X) / rect.W * texture.WidthRatio;
+            float x2 = (bounds.X + bounds.W - rect.X) / rect.W * texture.WidthRatio;
+            float y1 = (bounds.Y - rect.Y + rect.H - height) / rect.H * texture.HeightRatio;
+            float y2 = (bounds.Y + bounds.H - rect.Y) / rect.H * texture.HeightRatio;
+
+            if (x1 < 0)
+                x1 = 0f;
+
+            if (x2 > texture.WidthRatio)
+                x2 = texture.WidthRatio;
+
+            if (y1 < 0)
+                y1 = 0f;
+
+            if (y2 > texture.HeightRatio)
+                y2 = texture.HeightRatio;
+
+
+            float rx1 = rect.X;
+            float rx2 = rect.X + rect.W;
+            float ry1 = rect.Y + rect.H + space;
+            float ry2 = rect.Y + rect.H + space + height;
+
+            if (rx1 < bounds.X)
+                rx1 = bounds.X;
+
+            if (rx2 > bounds.X + bounds.W)
+                rx2 = bounds.X + bounds.W;
+
+            if (ry1 < bounds.Y + space)
+                ry1 = bounds.Y + space;
+
+            if (ry2 > bounds.Y + bounds.H + space + height)
+                ry2 = bounds.Y + bounds.H + space + height;
+
+            GL.Enable(EnableCap.Blend);
+
+            GL.MatrixMode(MatrixMode.Texture);
+            GL.PushMatrix();
+
+            if (Math.Abs(rect.Rotation) > float.Epsilon)
             {
-                GL.BindTexture(TextureTarget.Texture2D, Texture.ID);
-
-                float x1 = (bounds.X - rect.X) / rect.W * Texture.width_ratio;
-                float x2 = (bounds.X + bounds.W - rect.X) / rect.W * Texture.width_ratio;
-                float y1 = (bounds.Y - rect.Y + rect.H - height) / rect.H * Texture.height_ratio;
-                float y2 = (bounds.Y + bounds.H - rect.Y) / rect.H * Texture.height_ratio;
-
-                if (x1 < 0)
-                    x1 = 0f;
-
-                if (x2 > Texture.width_ratio)
-                    x2 = Texture.width_ratio;
-
-                if (y1 < 0)
-                    y1 = 0f;
-
-                if (y2 > Texture.height_ratio)
-                    y2 = Texture.height_ratio;
-
-
-                float rx1 = rect.X;
-                float rx2 = rect.X + rect.W;
-                float ry1 = rect.Y + rect.H + space;
-                float ry2 = rect.Y + rect.H + space + height;
-
-                if (rx1 < bounds.X)
-                    rx1 = bounds.X;
-
-                if (rx2 > bounds.X + bounds.W)
-                    rx2 = bounds.X + bounds.W;
-
-                if (ry1 < bounds.Y + space)
-                    ry1 = bounds.Y + space;
-
-                if (ry2 > bounds.Y + bounds.H + space + height)
-                    ry2 = bounds.Y + bounds.H + space + height;
-
-                GL.Enable(EnableCap.Blend);
-
-                GL.MatrixMode(MatrixMode.Texture);
-                GL.PushMatrix();
-
-                if (rect.Rotation != 0f)
-                {
-                    GL.Translate(0.5f, 0.5f, 0);
-                    GL.Rotate(-rect.Rotation, 0f, 0f, 1f);
-                    GL.Translate(-0.5f, -0.5f, 0);
-                }
-
-
-                GL.Begin(BeginMode.Quads);
-
-                GL.Color4(color.R, color.G, color.B, color.A * CGraphics.GlobalAlpha);
-                GL.TexCoord2(x2, y2);
-                GL.Vertex3(rx2, ry1, rect.Z + CGraphics.ZOffset);
-
-                GL.Color4(color.R, color.G, color.B, 0f);
-                GL.TexCoord2(x2, y1);
-                GL.Vertex3(rx2, ry2, rect.Z + CGraphics.ZOffset);
-
-                GL.Color4(color.R, color.G, color.B, 0f);
-                GL.TexCoord2(x1, y1);
-                GL.Vertex3(rx1, ry2, rect.Z + CGraphics.ZOffset);
-
-                GL.Color4(color.R, color.G, color.B, color.A * CGraphics.GlobalAlpha);
-                GL.TexCoord2(x1, y2);
-                GL.Vertex3(rx1, ry1, rect.Z + CGraphics.ZOffset);
-
-                GL.End();
-
-
-                GL.PopMatrix();
-
-                GL.Disable(EnableCap.Blend);
-                GL.BindTexture(TextureTarget.Texture2D, 0);
+                GL.Translate(0.5f, 0.5f, 0);
+                GL.Rotate(-rect.Rotation, 0f, 0f, 1f);
+                GL.Translate(-0.5f, -0.5f, 0);
             }
+
+
+            GL.Begin(BeginMode.Quads);
+
+            GL.Color4(color.R, color.G, color.B, color.A * CGraphics.GlobalAlpha);
+            GL.TexCoord2(x2, y2);
+            GL.Vertex3(rx2, ry1, rect.Z + CGraphics.ZOffset);
+
+            GL.Color4(color.R, color.G, color.B, 0f);
+            GL.TexCoord2(x2, y1);
+            GL.Vertex3(rx2, ry2, rect.Z + CGraphics.ZOffset);
+
+            GL.Color4(color.R, color.G, color.B, 0f);
+            GL.TexCoord2(x1, y1);
+            GL.Vertex3(rx1, ry2, rect.Z + CGraphics.ZOffset);
+
+            GL.Color4(color.R, color.G, color.B, color.A * CGraphics.GlobalAlpha);
+            GL.TexCoord2(x1, y2);
+            GL.Vertex3(rx1, ry1, rect.Z + CGraphics.ZOffset);
+
+            GL.End();
+
+
+            GL.PopMatrix();
+
+            GL.Disable(EnableCap.Blend);
+            GL.BindTexture(TextureTarget.Texture2D, 0);
         }
         #endregion drawing
 
-        public int TextureCount()
+        public int GetTextureCount()
         {
             return _Textures.Count;
         }
 
-        private void CheckQueque()
+        private void _CheckQueue()
         {
-            lock (MutexTexture)
+            lock (_MutexTexture)
             {
-                if (_Queque.Count == 0)
-                    return;
-
-                STextureQueque q = _Queque[0];
-                STexture texture = new STexture(-1);
-                if (_Textures.ContainsKey(q.ID))
+                while (_TexturesToLoad.Count > 0)
                 {
-                    texture = _Textures[q.ID];
+                    STextureQueue q = _TexturesToLoad.Dequeue();
+                    CTexture texture;
+                    if (!_Textures.TryGetValue(q.ID, out texture))
+                        continue;
+
+                    _CreateTexture(texture, q.DataWidth, q.DataHeight, q.Data);
                 }
-
-                if (texture.index < 1)
-                    return;
-
-                if (_UsePBO)
-                {
-                    try
-                    {
-                        GL.GenBuffers(1, out texture.PBO);
-                        GL.BindBuffer(BufferTarget.PixelUnpackBuffer, texture.PBO);
-                        GL.BufferData(BufferTarget.PixelUnpackBuffer, (IntPtr)q.data.Length, IntPtr.Zero, BufferUsageHint.StreamDraw);
-                        GL.BindBuffer(BufferTarget.PixelUnpackBuffer, 0);
-                    }
-                    catch (Exception)
-                    {
-                        //throw;
-                        _UsePBO = false;
-                    }
-                }
-
-                int id = GL.GenTexture();
-                GL.BindTexture(TextureTarget.Texture2D, id);
-                texture.ID = id;
-
-                texture.width = q.width;
-                texture.height = q.height;
-                texture.w2 = (float)MathHelper.NextPowerOfTwo(texture.width);
-                texture.h2 = (float)MathHelper.NextPowerOfTwo(texture.height);
-
-                texture.width_ratio = texture.width / texture.w2;
-                texture.height_ratio = texture.height / texture.h2;
-
-                GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, (int)texture.w2, (int)texture.h2, 0,
-                    OpenTK.Graphics.OpenGL.PixelFormat.Bgra, PixelType.UnsignedByte, IntPtr.Zero);
-
-                GL.TexSubImage2D(TextureTarget.Texture2D, 0, 0, 0, q.width, q.height,
-                    OpenTK.Graphics.OpenGL.PixelFormat.Bgra, PixelType.UnsignedByte, q.data);
-
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureParameterName.ClampToEdge);
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureParameterName.ClampToEdge);
-
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
-
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.LinearMipmapLinear);
-                GL.Ext.GenerateMipmap(GenerateMipmapTarget.Texture2D);
-
-                GL.BindTexture(TextureTarget.Texture2D, 0);
-
-                // Add to Texture List
-                texture.color = new SColorF(1f, 1f, 1f, 1f);
-                texture.rect = new SRectF(0f, 0f, texture.width, texture.height, 0f);
-                texture.TexturePath = String.Empty;
-
-                _Textures[texture.index] = texture;
-                q.data = null;
-                _Queque.RemoveAt(0);
             }
         }
         #endregion Textures

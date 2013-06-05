@@ -1,28 +1,50 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Windows.Forms;
+﻿#region license
+// /*
+//     This file is part of Vocaluxe.
+// 
+//     Vocaluxe is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+// 
+//     Vocaluxe is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+// 
+//     You should have received a copy of the GNU General Public License
+//     along with Vocaluxe. If not, see <http://www.gnu.org/licenses/>.
+//  */
+#endregion
 
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Windows.Forms;
 using Vocaluxe.Base;
-using Vocaluxe.GameModes;
-using Vocaluxe.Menu;
-using Vocaluxe.Menu.SongMenu;
+using VocaluxeLib;
+using VocaluxeLib.Game;
+using VocaluxeLib.Menu;
+using VocaluxeLib.Songs;
 
 namespace Vocaluxe.Screens
 {
     class CScreenHighscore : CMenu
     {
         // Version number for theme files. Increment it, if you've changed something on the theme files!
-        const int ScreenVersion = 2;
+        protected override int _ScreenVersion
+        {
+            get { return 2; }
+        }
 
-        private const int NumEntrys = 10;
-        private const string TextSongName = "TextSongName";
-        private const string TextSongMode = "TextSongMode";
-        private string[] TextNumber;
-        private string[] TextName;
-        private string[] TextScore;
-        private string[] TextDate;
-        private string[] ParticleEffectNew;
+        private const int _NumEntrys = 10;
+        private const string _TextSongName = "TextSongName";
+        private const string _TextSongMode = "TextSongMode";
+        private string[] _TextNumber;
+        private string[] _TextName;
+        private string[] _TextScore;
+        private string[] _TextDate;
+        private string[] _ParticleEffectNew;
 
         private List<SScores>[] _Scores;
         private List<int> _NewEntryIDs;
@@ -30,91 +52,77 @@ namespace Vocaluxe.Screens
         private int _Pos;
         private bool _IsDuet;
 
-        public CScreenHighscore()
-        {
-        }
-
-        protected override void Init()
+        public override void Init()
         {
             base.Init();
 
-            _ThemeName = "ScreenHighscore";
-            _ScreenVersion = ScreenVersion;
+            List<string> texts = new List<string> {_TextSongName, _TextSongMode};
 
-            List<string> texts = new List<string>();
-            texts.Add(TextSongName);
-            texts.Add(TextSongMode);
-
-            TextNumber = new string[NumEntrys];
-            for (int i = 0; i < NumEntrys; i++)
+            _TextNumber = new string[_NumEntrys];
+            for (int i = 0; i < _NumEntrys; i++)
             {
-                TextNumber[i] = "TextNumber" + (i + 1).ToString();
-                texts.Add(TextNumber[i]);
+                _TextNumber[i] = "TextNumber" + (i + 1);
+                texts.Add(_TextNumber[i]);
             }
 
-            TextName = new string[NumEntrys];
-            for (int i = 0; i < NumEntrys; i++)
+            _TextName = new string[_NumEntrys];
+            for (int i = 0; i < _NumEntrys; i++)
             {
-                TextName[i] = "TextName" + (i + 1).ToString();
-                texts.Add(TextName[i]);
+                _TextName[i] = "TextName" + (i + 1);
+                texts.Add(_TextName[i]);
             }
 
-            TextScore = new string[NumEntrys];
-            for (int i = 0; i < NumEntrys; i++)
+            _TextScore = new string[_NumEntrys];
+            for (int i = 0; i < _NumEntrys; i++)
             {
-                TextScore[i] = "TextScore" + (i + 1).ToString();
-                texts.Add(TextScore[i]);
+                _TextScore[i] = "TextScore" + (i + 1);
+                texts.Add(_TextScore[i]);
             }
 
-            TextDate = new string[NumEntrys];
-            for (int i = 0; i < NumEntrys; i++)
+            _TextDate = new string[_NumEntrys];
+            for (int i = 0; i < _NumEntrys; i++)
             {
-                TextDate[i] = "TextDate" + (i + 1).ToString();
-                texts.Add(TextDate[i]);
+                _TextDate[i] = "TextDate" + (i + 1);
+                texts.Add(_TextDate[i]);
             }
 
-            ParticleEffectNew = new string[NumEntrys];
-            for (int i = 0; i < NumEntrys; i++)
-            {
-                ParticleEffectNew[i] = "ParticleEffectNew" + (i + 1).ToString();
-            }
+            _ParticleEffectNew = new string[_NumEntrys];
+            for (int i = 0; i < _NumEntrys; i++)
+                _ParticleEffectNew[i] = "ParticleEffectNew" + (i + 1);
 
             _ThemeTexts = texts.ToArray();
-            _ThemeParticleEffects = ParticleEffectNew;
+            _ThemeParticleEffects = _ParticleEffectNew;
 
             _NewEntryIDs = new List<int>();
         }
 
-        public override bool HandleInput(KeyEvent KeyEvent)
+        public override bool HandleInput(SKeyEvent keyEvent)
         {
-            if (KeyEvent.KeyPressed && !Char.IsControl(KeyEvent.Unicode))
-            {
-                
-            }
+            if (keyEvent.KeyPressed && !Char.IsControl(keyEvent.Unicode)) {}
             else
             {
-                switch (KeyEvent.Key)
+                switch (keyEvent.Key)
                 {
                     case Keys.Escape:
                     case Keys.Back:
                     case Keys.Enter:
-                        LeaveScreen();
+                        _LeaveScreen();
                         break;
 
                     case Keys.Down:
-                        ChangePos(1);
+                        _ChangePos(1);
                         break;
 
                     case Keys.Up:
-                        ChangePos(-1);
+                        _ChangePos(-1);
                         break;
 
                     case Keys.Left:
-                        ChangeRound(-1);
+                        _ChangeRound(-1);
                         break;
 
                     case Keys.Right:
-                        ChangeRound(1);
+                        _ChangeRound(1);
                         break;
                 }
             }
@@ -122,78 +130,64 @@ namespace Vocaluxe.Screens
             return true;
         }
 
-        public override bool HandleMouse(MouseEvent MouseEvent)
+        public override bool HandleMouse(SMouseEvent mouseEvent)
         {
-            if (MouseEvent.LB && IsMouseOver(MouseEvent))
-            {
-                
-            }
+            if (mouseEvent.LB && _IsMouseOver(mouseEvent)) {}
 
-            if (MouseEvent.LB)
-            {
-                LeaveScreen();
-            }
+            if (mouseEvent.LB)
+                _LeaveScreen();
 
-            if (MouseEvent.RB)
-            {
-                LeaveScreen();
-            }
+            if (mouseEvent.RB)
+                _LeaveScreen();
 
-            if (MouseEvent.MB)
+            if (mouseEvent.MB)
             {
-                int LastRound = _Round;
-                ChangeRound(1);
-                if (LastRound == _Round)
+                int lastRound = _Round;
+                _ChangeRound(1);
+                if (lastRound == _Round)
                 {
                     _Round = 0;
-                    UpdateRound();
+                    _UpdateRound();
                 }
             }
 
-            ChangePos(MouseEvent.Wheel);
+            _ChangePos(mouseEvent.Wheel);
             return true;
         }
 
         public override bool UpdateGame()
         {
-            for (int p = 0; p < NumEntrys; p++)
+            for (int p = 0; p < _NumEntrys; p++)
             {
                 if (_Pos + p < _Scores[_Round].Count)
                 {
-                    Texts[htTexts(TextNumber[p])].Visible = true;
-                    Texts[htTexts(TextName[p])].Visible = true;
-                    Texts[htTexts(TextScore[p])].Visible = true;
-                    Texts[htTexts(TextDate[p])].Visible = true;
+                    _Texts[_TextNumber[p]].Visible = true;
+                    _Texts[_TextName[p]].Visible = true;
+                    _Texts[_TextScore[p]].Visible = true;
+                    _Texts[_TextDate[p]].Visible = true;
 
-                    Texts[htTexts(TextNumber[p])].Text = (_Pos + p + 1).ToString();
+                    _Texts[_TextNumber[p]].Text = (_Pos + p + 1).ToString();
 
                     string name = _Scores[_Round][_Pos + p].Name;
                     name += " [" + CLanguage.Translate(Enum.GetName(typeof(EGameDifficulty), _Scores[_Round][_Pos + p].Difficulty)) + "]";
                     if (_IsDuet)
-                        name += " (P" + (_Scores[_Round][_Pos + p].LineNr + 1).ToString() + ")";
-                    Texts[htTexts(TextName[p])].Text = name;
+                        name += " (P" + (_Scores[_Round][_Pos + p].LineNr + 1) + ")";
+                    _Texts[_TextName[p]].Text = name;
 
-                    Texts[htTexts(TextScore[p])].Text = _Scores[_Round][_Pos + p].Score.ToString("00000");
-                    Texts[htTexts(TextDate[p])].Text = _Scores[_Round][_Pos + p].Date;
+                    _Texts[_TextScore[p]].Text = _Scores[_Round][_Pos + p].Score.ToString("00000");
+                    _Texts[_TextDate[p]].Text = _Scores[_Round][_Pos + p].Date;
 
-                    if (isNewEntry(_Scores[_Round][_Pos + p].ID) == true)
-                    {
-                        ParticleEffects[htParticleEffects(ParticleEffectNew[p])].Visible = true;
-                    }
-                    else
-                    {
-                        ParticleEffects[htParticleEffects(ParticleEffectNew[p])].Visible = false;
-                    }
+                    _ParticleEffects[_ParticleEffectNew[p]].Visible = _IsNewEntry(_Scores[_Round][_Pos + p].ID);
                 }
                 else
                 {
-                    Texts[htTexts(TextNumber[p])].Visible = false;
-                    Texts[htTexts(TextName[p])].Visible = false;
-                    Texts[htTexts(TextScore[p])].Visible = false;
-                    Texts[htTexts(TextDate[p])].Visible = false;
-                    ParticleEffects[htParticleEffects(ParticleEffectNew[p])].Visible = false;
+                    _Texts[_TextNumber[p]].Visible = false;
+                    _Texts[_TextName[p]].Visible = false;
+                    _Texts[_TextScore[p]].Visible = false;
+                    _Texts[_TextDate[p]].Visible = false;
+                    _ParticleEffects[_ParticleEffectNew[p]].Visible = false;
                 }
-            } 
+            }
             return true;
         }
 
@@ -202,39 +196,24 @@ namespace Vocaluxe.Screens
             base.OnShow();
             _Round = 0;
             _Pos = 0;
-            CPoints _Points = CGame.GetPoints();
-            _Scores = new List<SScores>[_Points.NumRounds];
+            CPoints points = CGame.GetPoints();
+            _Scores = new List<SScores>[points.NumRounds];
             for (int i = 0; i < _Scores.Length; i++)
-            {
                 _Scores[i] = new List<SScores>();
-            }
             _NewEntryIDs.Clear();
-            AddScoresToDB();
-            LoadScores();
-            UpdateRound();
+            _AddScoresToDB();
+            _LoadScores();
+            _UpdateRound();
 
             UpdateGame();
         }
 
-        public override bool Draw()
+        private bool _IsNewEntry(int id)
         {
-            return base.Draw();
+            return _NewEntryIDs.Any(t => t == id);
         }
 
-        private bool isNewEntry(int id)
-        {
-            for(int i=0; i<_NewEntryIDs.Count; i++)
-            {
-                if (_NewEntryIDs[i] == id)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private void AddScoresToDB()
+        private void _AddScoresToDB()
         {
             CPoints points = CGame.GetPoints();
             if (points == null)
@@ -242,100 +221,97 @@ namespace Vocaluxe.Screens
 
             for (int round = 0; round < points.NumRounds; round++)
             {
-                SPlayer[] player = points.GetPlayer(round, CGame.NumPlayer);
+                SPlayer[] players = points.GetPlayer(round, CGame.NumPlayer);
 
-                for (int p = 0; p < player.Length; p++)
+                for (int p = 0; p < players.Length; p++)
                 {
-                    if (player[p].Points > CSettings.MinScoreForDB && player[p].SongFinished && !CProfiles.IsGuestProfile(player[p].ProfileID))
-                        _NewEntryIDs.Add(CDataBase.AddScore(player[p]));
+                    if (players[p].Points > CSettings.MinScoreForDB && players[p].SongFinished && !CProfiles.IsGuestProfile(players[p].ProfileID))
+                        _NewEntryIDs.Add(CDataBase.AddScore(players[p]));
                 }
             }
         }
 
-        private void LoadScores()
+        private void _LoadScores()
         {
             CPoints points = CGame.GetPoints();
             if (points == null)
                 return;
 
-            _Pos = 0;            
+            _Pos = 0;
             for (int round = 0; round < points.NumRounds; round++)
             {
                 SPlayer player = points.GetPlayer(round, CGame.NumPlayer)[0];
-                CDataBase.LoadScore(ref _Scores[round], player);
+                CDataBase.LoadScore(out _Scores[round], player);
             }
         }
 
-        private void UpdateRound()
+        private void _UpdateRound()
         {
             _IsDuet = false;
             CPoints points = CGame.GetPoints();
-            SPlayer player = points.GetPlayer(_Round, CGame.NumPlayer)[0];
-            CSong song = CGame.GetSong(_Round+1);
+            CSong song = CGame.GetSong(_Round + 1);
             if (song == null)
                 return;
 
-            Texts[htTexts(TextSongName)].Text = song.Artist + " - " + song.Title;
+            _Texts[_TextSongName].Text = song.Artist + " - " + song.Title;
             if (points.NumRounds > 1)
-            {
-                Texts[htTexts(TextSongName)].Text += " (" + (_Round+1) + "/" + points.NumRounds + ")";
-            }
+                _Texts[_TextSongName].Text += " (" + (_Round + 1) + "/" + points.NumRounds + ")";
 
-            switch (CGame.GetGameMode(_Round))
+            switch (CGame.GetGameMode(_Round + 1))
             {
                 case EGameMode.TR_GAMEMODE_NORMAL:
-                    Texts[htTexts(TextSongMode)].Text = "TR_GAMEMODE_NORMAL";
+                    _Texts[_TextSongMode].Text = "TR_GAMEMODE_NORMAL";
                     break;
 
                 case EGameMode.TR_GAMEMODE_MEDLEY:
-                    Texts[htTexts(TextSongMode)].Text = "TR_GAMEMODE_MEDLEY";
+                    _Texts[_TextSongMode].Text = "TR_GAMEMODE_MEDLEY";
                     break;
 
                 case EGameMode.TR_GAMEMODE_DUET:
-                    Texts[htTexts(TextSongMode)].Text = "TR_GAMEMODE_DUET";
+                    _Texts[_TextSongMode].Text = "TR_GAMEMODE_DUET";
                     _IsDuet = true;
                     break;
 
                 case EGameMode.TR_GAMEMODE_SHORTSONG:
-                    Texts[htTexts(TextSongMode)].Text = "TR_GAMEMODE_SHORTSONG";
+                    _Texts[_TextSongMode].Text = "TR_GAMEMODE_SHORTSONG";
                     break;
 
                 default:
-                    Texts[htTexts(TextSongMode)].Text = "TR_GAMEMODE_NORMAL";
+                    _Texts[_TextSongMode].Text = "TR_GAMEMODE_NORMAL";
                     break;
             }
 
             _Pos = 0;
         }
 
-        private void ChangePos(int Num)
+        private void _ChangePos(int num)
         {
-            if (Num > 0)
+            if (num > 0)
             {
-                if (_Pos + Num + NumEntrys < _Scores[_Round].Count)
-                    _Pos += Num;
+                if (_Pos + num + _NumEntrys < _Scores[_Round].Count)
+                    _Pos += num;
             }
-            if (Num < 0)
+            if (num < 0)
             {
-                _Pos += Num;
+                _Pos += num;
                 if (_Pos < 0)
                     _Pos = 0;
             }
         }
 
-        private void ChangeRound(int Num)
+        private void _ChangeRound(int num)
         {
-            CPoints _Points = CGame.GetPoints();
-            if (_Round + Num < _Points.NumRounds && _Round + Num > -1)
-                _Round += Num;
-            else if (_Round + Num >= _Points.NumRounds)
-                _Round = _Points.NumRounds - 1;
-            else if (_Round + Num < 0)
+            CPoints points = CGame.GetPoints();
+            if (_Round + num < points.NumRounds && _Round + num > -1)
+                _Round += num;
+            else if (_Round + num >= points.NumRounds)
+                _Round = points.NumRounds - 1;
+            else if (_Round + num < 0)
                 _Round = 0;
-            UpdateRound();
+            _UpdateRound();
         }
 
-        private void LeaveScreen()
+        private void _LeaveScreen()
         {
             CParty.LeavingHighscore();
         }

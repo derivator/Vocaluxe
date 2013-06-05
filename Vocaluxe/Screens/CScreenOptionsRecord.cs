@@ -1,18 +1,34 @@
-﻿using System;
+﻿#region license
+// /*
+//     This file is part of Vocaluxe.
+// 
+//     Vocaluxe is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+// 
+//     Vocaluxe is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+// 
+//     You should have received a copy of the GNU General Public License
+//     along with Vocaluxe. If not, see <http://www.gnu.org/licenses/>.
+//  */
+#endregion
+
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Text;
 using System.Windows.Forms;
-
 using Vocaluxe.Base;
-using Vocaluxe.Lib.Draw;
 using Vocaluxe.Lib.Sound;
-using Vocaluxe.Menu;
-
+using VocaluxeLib;
+using VocaluxeLib.Menu;
 
 namespace Vocaluxe.Screens
 {
-    struct DelayTest
+    struct SDelayTest
     {
         public Stopwatch Timer;
         public float Delay;
@@ -21,113 +37,101 @@ namespace Vocaluxe.Screens
     class CScreenOptionsRecord : CMenu
     {
         // Version number for theme files. Increment it, if you've changed something on the theme files!
-        const int ScreenVersion = 2;
+        protected override int _ScreenVersion
+        {
+            get { return 3; }
+        }
 
-        private const float MaxDelayTime = 1f;
-        private const string SelectSlideRecordDevices = "SelectSlideRecordDevices";
-        private const string SelectSlideRecordInputs = "SelectSlideRecordInputs";
+        private const float _MaxDelayTime = 1f;
+        private const string _SelectSlideRecordDevices = "SelectSlideRecordDevices";
 
-        private const string SelectSlideRecordChannel1 = "SelectSlideRecordChannel1";
-        private const string SelectSlideRecordChannel2 = "SelectSlideRecordChannel2";
-        private const string SelectSlideDelay = "SelectSlideDelay";
+        private const string _SelectSlideRecordChannel1 = "SelectSlideRecordChannel1";
+        private const string _SelectSlideRecordChannel2 = "SelectSlideRecordChannel2";
+        private const string _SelectSlideDelay = "SelectSlideDelay";
 
-        private const string StaticWarning = "StaticWarning";
-        private const string TextWarning = "TextWarning";
+        private const string _StaticWarning = "StaticWarning";
+        private const string _TextWarning = "TextWarning";
 
-        private const string ButtonExit = "ButtonExit";
-        private const string ButtonDelayTest = "ButtonDelayTest";
+        private const string _ButtonExit = "ButtonExit";
+        private const string _ButtonDelayTest = "ButtonDelayTest";
 
-        private const string TextDelayChannel1 = "TextDelayChannel1";
-        private const string TextDelayChannel2 = "TextDelayChannel2";
+        private const string _TextDelayChannel1 = "TextDelayChannel1";
+        private const string _TextDelayChannel2 = "TextDelayChannel2";
 
-        private const string EqualizerChannel1 = "EqualizerChannel1";
-        private const string EqualizerChannel2 = "EqualizerChannel2";
+        private const string _EqualizerChannel1 = "EqualizerChannel1";
+        private const string _EqualizerChannel2 = "EqualizerChannel2";
 
-        private readonly string[] StaticEnergyChannel = new string[] { "StaticEnergyChannel1", "StaticEnergyChannel2" };
-        private float[] ChannelEnergy;
+        private readonly string[] _StaticEnergyChannel = new string[] {"StaticEnergyChannel1", "StaticEnergyChannel2"};
+        private float[] _ChannelEnergy;
 
-        private SRecordDevice[] _devices;
+        private ReadOnlyCollection<CRecordDevice> _Devices;
         private int _DeviceNr;
-        private int _InputNr;
 
-        private DelayTest[] _DelayTest;
+        private SDelayTest[] _DelayTest;
         private bool _DelayTestRunning;
         private int _DelaySound;
 
-        public CScreenOptionsRecord()
-        {
-        }
-
-        protected override void Init()
+        public override void Init()
         {
             base.Init();
 
-            _ThemeName = "ScreenOptionsRecord";
-            _ScreenVersion = ScreenVersion;
-
-            List<string> values = new List<string>();
-            values.Add(StaticWarning);
-            values.AddRange(StaticEnergyChannel);
+            List<string> values = new List<string> {_StaticWarning};
+            values.AddRange(_StaticEnergyChannel);
             _ThemeStatics = values.ToArray();
 
-            _ThemeTexts = new string[] { TextWarning, TextDelayChannel1, TextDelayChannel2 };
-            _ThemeButtons = new string[] { ButtonExit, ButtonDelayTest };
-            _ThemeSelectSlides = new string[] { SelectSlideRecordDevices, SelectSlideRecordInputs, SelectSlideRecordChannel1, SelectSlideRecordChannel2, SelectSlideDelay };
-            _ThemeEqualizers = new string[] { EqualizerChannel1, EqualizerChannel2 };
+            _ThemeTexts = new string[] {_TextWarning, _TextDelayChannel1, _TextDelayChannel2};
+            _ThemeButtons = new string[] {_ButtonExit, _ButtonDelayTest};
+            _ThemeSelectSlides = new string[] {_SelectSlideRecordDevices, _SelectSlideRecordChannel1, _SelectSlideRecordChannel2, _SelectSlideDelay};
+            _ThemeEqualizers = new string[] {_EqualizerChannel1, _EqualizerChannel2};
         }
 
-        public override void LoadTheme(string XmlPath)
+        public override void LoadTheme(string xmlPath)
         {
-            base.LoadTheme(XmlPath);
+            base.LoadTheme(xmlPath);
 
             int max = CSettings.MaxNumPlayer + 1;
             if (max > 7)
                 max = 7;
 
-            SelectSlides[htSelectSlides(SelectSlideRecordChannel1)].NumVisible = max;
-            SelectSlides[htSelectSlides(SelectSlideRecordChannel2)].NumVisible = max;
+            _SelectSlides[_SelectSlideRecordChannel1].NumVisible = max;
+            _SelectSlides[_SelectSlideRecordChannel2].NumVisible = max;
 
-            SelectSlides[htSelectSlides(SelectSlideRecordChannel1)].AddValue(CLanguage.Translate("TR_CONFIG_OFF"));
-            SelectSlides[htSelectSlides(SelectSlideRecordChannel2)].AddValue(CLanguage.Translate("TR_CONFIG_OFF"));
+            _SelectSlides[_SelectSlideRecordChannel1].AddValue(CLanguage.Translate("TR_CONFIG_OFF"));
+            _SelectSlides[_SelectSlideRecordChannel2].AddValue(CLanguage.Translate("TR_CONFIG_OFF"));
 
             for (int i = 1; i <= CSettings.MaxNumPlayer; i++)
             {
-                SelectSlides[htSelectSlides(SelectSlideRecordChannel1)].AddValue(i.ToString());
-                SelectSlides[htSelectSlides(SelectSlideRecordChannel2)].AddValue(i.ToString());
+                _SelectSlides[_SelectSlideRecordChannel1].AddValue(i.ToString());
+                _SelectSlides[_SelectSlideRecordChannel2].AddValue(i.ToString());
             }
 
             for (int i = 0; i < 26; i++)
+                _SelectSlides[_SelectSlideDelay].AddValue((i * 20) + " ms");
+
+            _ChannelEnergy = new float[_StaticEnergyChannel.Length];
+
+            for (int i = 0; i < _ChannelEnergy.Length; i++)
             {
-                SelectSlides[htSelectSlides(SelectSlideDelay)].AddValue((i * 20).ToString() + " ms");
+                _Statics[_StaticEnergyChannel[i]].Visible = false;
+                _ChannelEnergy[i] = 0f;
             }
 
-            ChannelEnergy = new float[StaticEnergyChannel.Length];
-
-            for (int i = 0; i < ChannelEnergy.Length; i++)
-            {
-                Statics[htStatics(StaticEnergyChannel[i])].Visible = false;
-                ChannelEnergy[i] = 0f;
-            }
-
-            Equalizers[htEqualizer(EqualizerChannel1)].ScreenHandles = true;
-            Equalizers[htEqualizer(EqualizerChannel2)].ScreenHandles = true;
+            _Equalizers[_EqualizerChannel1].ScreenHandles = true;
+            _Equalizers[_EqualizerChannel2].ScreenHandles = true;
         }
 
-        public override bool HandleInput(KeyEvent KeyEvent)
+        public override bool HandleInput(SKeyEvent keyEvent)
         {
-            base.HandleInput(KeyEvent);
+            base.HandleInput(keyEvent);
 
-            if (KeyEvent.KeyPressed)
-            {
-
-            }
+            if (keyEvent.KeyPressed) {}
             else
             {
-                switch (KeyEvent.Key)
+                switch (keyEvent.Key)
                 {
                     case Keys.Escape:
                     case Keys.Back:
-                        SaveMicConfig();
+                        _SaveMicConfig();
                         CGraphics.FadeTo(EScreens.ScreenOptions);
                         break;
 
@@ -137,92 +141,79 @@ namespace Vocaluxe.Screens
                         break;
 
                     case Keys.Enter:
-                        if (Buttons[htButtons(ButtonExit)].Selected)
+                        if (_Buttons[_ButtonExit].Selected)
                         {
-                            SaveMicConfig();
+                            _SaveMicConfig();
                             CGraphics.FadeTo(EScreens.ScreenOptions);
                         }
-                        
-                        if (Buttons[htButtons(ButtonDelayTest)].Selected)
-                        {
-                            TestDelay();
-                        }
-                             
+
+                        if (_Buttons[_ButtonDelayTest].Selected)
+                            _TestDelay();
+
                         break;
 
                     case Keys.D:
-                        TestDelay();
+                        _TestDelay();
                         break;
 
                     case Keys.Left:
-                        if (SelectSlides[htSelectSlides(SelectSlideRecordDevices)].Selected)
-                            OnDeviceEvent();
+                        if (_SelectSlides[_SelectSlideRecordDevices].Selected)
+                            _OnDeviceEvent();
 
-                        if (SelectSlides[htSelectSlides(SelectSlideRecordInputs)].Selected)
-                            OnInputEvent();
+                        if (_SelectSlides[_SelectSlideRecordChannel1].Selected ||
+                            _SelectSlides[_SelectSlideRecordChannel2].Selected)
+                            _SetMicConfig();
 
-                        if (SelectSlides[htSelectSlides(SelectSlideRecordChannel1)].Selected ||
-                            SelectSlides[htSelectSlides(SelectSlideRecordChannel2)].Selected)
-                            SetMicConfig();
-
-                        if (SelectSlides[htSelectSlides(SelectSlideDelay)].Selected)
-                            SaveDelayConfig();
+                        if (_SelectSlides[_SelectSlideDelay].Selected)
+                            _SaveDelayConfig();
                         break;
 
                     case Keys.Right:
-                        if (SelectSlides[htSelectSlides(SelectSlideRecordDevices)].Selected)
-                            OnDeviceEvent();
+                        if (_SelectSlides[_SelectSlideRecordDevices].Selected)
+                            _OnDeviceEvent();
 
-                        if (SelectSlides[htSelectSlides(SelectSlideRecordInputs)].Selected)
-                            OnInputEvent();
+                        if (_SelectSlides[_SelectSlideRecordChannel1].Selected ||
+                            _SelectSlides[_SelectSlideRecordChannel2].Selected)
+                            _SetMicConfig();
 
-                        if (SelectSlides[htSelectSlides(SelectSlideRecordChannel1)].Selected ||
-                            SelectSlides[htSelectSlides(SelectSlideRecordChannel2)].Selected)
-                            SetMicConfig();
-
-                        if (SelectSlides[htSelectSlides(SelectSlideDelay)].Selected)
-                            SaveDelayConfig();
+                        if (_SelectSlides[_SelectSlideDelay].Selected)
+                            _SaveDelayConfig();
                         break;
                 }
             }
             return true;
         }
 
-        public override bool HandleMouse(MouseEvent MouseEvent)
+        public override bool HandleMouse(SMouseEvent mouseEvent)
         {
-            base.HandleMouse(MouseEvent);
+            base.HandleMouse(mouseEvent);
 
-            if (MouseEvent.RB)
+            if (mouseEvent.RB)
             {
-                SaveMicConfig();
+                _SaveMicConfig();
                 CGraphics.FadeTo(EScreens.ScreenOptions);
             }
 
-            if (MouseEvent.LB && IsMouseOver(MouseEvent))
+            if (mouseEvent.LB && _IsMouseOver(mouseEvent))
             {
-                if (SelectSlides[htSelectSlides(SelectSlideRecordDevices)].Selected)
-                    OnDeviceEvent();
+                if (_SelectSlides[_SelectSlideRecordDevices].Selected)
+                    _OnDeviceEvent();
 
-                if (SelectSlides[htSelectSlides(SelectSlideRecordInputs)].Selected)
-                    OnInputEvent();
+                if (_SelectSlides[_SelectSlideRecordChannel1].Selected ||
+                    _SelectSlides[_SelectSlideRecordChannel2].Selected)
+                    _SetMicConfig();
 
-                if (SelectSlides[htSelectSlides(SelectSlideRecordChannel1)].Selected ||
-                    SelectSlides[htSelectSlides(SelectSlideRecordChannel2)].Selected)
-                    SetMicConfig();
+                if (_SelectSlides[_SelectSlideDelay].Selected)
+                    _SaveDelayConfig();
 
-                if (SelectSlides[htSelectSlides(SelectSlideDelay)].Selected)
-                    SaveDelayConfig();
-
-                if (Buttons[htButtons(ButtonExit)].Selected)
+                if (_Buttons[_ButtonExit].Selected)
                 {
-                    SaveMicConfig();
+                    _SaveMicConfig();
                     CGraphics.FadeTo(EScreens.ScreenOptions);
                 }
 
-                if (Buttons[htButtons(ButtonDelayTest)].Selected)
-                {
-                    TestDelay();
-                }
+                if (_Buttons[_ButtonDelayTest].Selected)
+                    _TestDelay();
             }
             return true;
         }
@@ -230,9 +221,7 @@ namespace Vocaluxe.Screens
         public override bool UpdateGame()
         {
             for (int i = 0; i < CSettings.MaxNumPlayer; i++)
-            {
                 CSound.AnalyzeBuffer(i);
-            }
 
             if (_DelayTest != null)
             {
@@ -250,19 +239,19 @@ namespace Vocaluxe.Screens
                     {
                         int player = 0;
                         if (i == 0)
-                            player = SelectSlides[htSelectSlides(SelectSlideRecordChannel1)].Selection;
+                            player = _SelectSlides[_SelectSlideRecordChannel1].Selection;
 
                         if (i == 1)
-                            player = SelectSlides[htSelectSlides(SelectSlideRecordChannel2)].Selection;
+                            player = _SelectSlides[_SelectSlideRecordChannel2].Selection;
 
-                        if (_DelayTest[i].Timer.ElapsedMilliseconds > MaxDelayTime * 1000f || player == 0)
+                        if (_DelayTest[i].Timer.ElapsedMilliseconds > _MaxDelayTime * 1000f || player == 0)
                         {
                             _DelayTest[i].Delay = 0f;
                             _DelayTest[i].Timer.Stop();
                             _DelayTestRunning = false;
                         }
                         else if (CSound.RecordGetMaxVolume(player - 1) > 0.1f &&
-                            (CSound.RecordGetToneAbs(player - 1) == 9 || CSound.RecordGetToneAbs(player - 1) == 21 || CSound.RecordGetToneAbs(player - 1) == 33))
+                                 (CSound.RecordGetToneAbs(player - 1) == 9 || CSound.RecordGetToneAbs(player - 1) == 21 || CSound.RecordGetToneAbs(player - 1) == 33))
                         {
                             _DelayTest[i].Delay = _DelayTest[i].Timer.ElapsedMilliseconds;
                             _DelayTest[i].Timer.Stop();
@@ -270,41 +259,39 @@ namespace Vocaluxe.Screens
                         }
                     }
                 }
-                Texts[htTexts(TextDelayChannel1)].Text = _DelayTest[0].Delay.ToString("000") + " ms";
-                Texts[htTexts(TextDelayChannel2)].Text = _DelayTest[1].Delay.ToString("000") + " ms";
+                _Texts[_TextDelayChannel1].Text = _DelayTest[0].Delay.ToString("000") + " ms";
+                _Texts[_TextDelayChannel2].Text = _DelayTest[1].Delay.ToString("000") + " ms";
             }
 
 
-            if (CheckMicConfig())
+            if (_CheckMicConfig())
             {
-                ChannelEnergy[0] = 0f;
-                int player = SelectSlides[htSelectSlides(SelectSlideRecordChannel1)].Selection;
+                _ChannelEnergy[0] = 0f;
+                int player = _SelectSlides[_SelectSlideRecordChannel1].Selection;
                 if (player > 0)
                 {
-                    ChannelEnergy[0] = CSound.RecordGetMaxVolume(player - 1);
-                    Equalizers[htEqualizer(EqualizerChannel1)].Update(CSound.ToneWeigth(player - 1));
+                    _ChannelEnergy[0] = CSound.RecordGetMaxVolume(player - 1);
+                    _Equalizers[_EqualizerChannel1].Update(CSound.ToneWeigth(player - 1));
                 }
                 else
-                    Equalizers[htEqualizer(EqualizerChannel1)].Reset();
+                    _Equalizers[_EqualizerChannel1].Reset();
 
-                ChannelEnergy[1] = 0f;
-                player = SelectSlides[htSelectSlides(SelectSlideRecordChannel2)].Selection;
+                _ChannelEnergy[1] = 0f;
+                player = _SelectSlides[_SelectSlideRecordChannel2].Selection;
                 if (player > 0)
                 {
-                    ChannelEnergy[1] = CSound.RecordGetMaxVolume(player - 1);
-                    Equalizers[htEqualizer(EqualizerChannel2)].Update(CSound.ToneWeigth(player - 1));
+                    _ChannelEnergy[1] = CSound.RecordGetMaxVolume(player - 1);
+                    _Equalizers[_EqualizerChannel2].Update(CSound.ToneWeigth(player - 1));
                 }
                 else
-                    Equalizers[htEqualizer(EqualizerChannel2)].Reset();
+                    _Equalizers[_EqualizerChannel2].Reset();
             }
             else
             {
-                for (int i = 0; i < ChannelEnergy.Length; i++)
-                {
-                    ChannelEnergy[i] = 0f;
-                }
-                Equalizers[htEqualizer(EqualizerChannel1)].Reset();
-                Equalizers[htEqualizer(EqualizerChannel2)].Reset();
+                for (int i = 0; i < _ChannelEnergy.Length; i++)
+                    _ChannelEnergy[i] = 0f;
+                _Equalizers[_EqualizerChannel1].Reset();
+                _Equalizers[_EqualizerChannel2].Reset();
             }
 
             return true;
@@ -314,48 +301,36 @@ namespace Vocaluxe.Screens
         {
             base.OnShow();
 
-            SelectSlides[htSelectSlides(SelectSlideRecordDevices)].Clear();
-            SelectSlides[htSelectSlides(SelectSlideRecordInputs)].Clear();
+            _SelectSlides[_SelectSlideRecordDevices].Clear();
 
-            for (int i = 0; i < ChannelEnergy.Length; i++)
-            {
-                ChannelEnergy[i] = 0f;
-            }
+            for (int i = 0; i < _ChannelEnergy.Length; i++)
+                _ChannelEnergy[i] = 0f;
 
             _DeviceNr = -1;
-            _InputNr = -1;
 
-            _devices = CSound.RecordGetDevices();
-            if (_devices != null)
+            _Devices = CSound.RecordGetDevices();
+            if (_Devices != null)
             {
                 _DeviceNr = 0;
-                _InputNr = 0;
-                GetFirstConfiguredRecordDevice(ref _DeviceNr, ref _InputNr);
+                _GetFirstConfiguredRecordDevice(ref _DeviceNr);
 
-                for (int dev = 0; dev < _devices.Length; dev++)
-                {
-                    SelectSlides[htSelectSlides(SelectSlideRecordDevices)].AddValue(_devices[dev].Name);
-                }
-                SelectSlides[htSelectSlides(SelectSlideRecordDevices)].Selection = _DeviceNr;
+                foreach (CRecordDevice device in _Devices)
+                    _SelectSlides[_SelectSlideRecordDevices].AddValue(device.Name);
+                _SelectSlides[_SelectSlideRecordDevices].Selection = _DeviceNr;
 
-                for (int inp = 0; inp < _devices[0].Inputs.Count; inp++)
-                {
-                    SelectSlides[htSelectSlides(SelectSlideRecordInputs)].AddValue(_devices[0].Inputs[inp].Name);
-                }
-                SelectSlides[htSelectSlides(SelectSlideRecordInputs)].Selection = _InputNr;
-                UpdateChannels();
+                _UpdateChannels();
             }
 
-            SelectSlides[htSelectSlides(SelectSlideRecordChannel1)].Visible = (_devices != null);
-            SelectSlides[htSelectSlides(SelectSlideRecordChannel2)].Visible = (_devices != null);
-            
-            Statics[htStatics(StaticWarning)].Visible = false;
-            Texts[htTexts(TextWarning)].Visible = false;
+            _SelectSlides[_SelectSlideRecordChannel1].Visible = _Devices != null;
+            _SelectSlides[_SelectSlideRecordChannel2].Visible = _Devices != null;
+
+            _Statics[_StaticWarning].Visible = false;
+            _Texts[_TextWarning].Visible = false;
 
             _DelayTest = null;
-            if (_devices != null)
+            if (_Devices != null)
             {
-                _DelayTest = new DelayTest[2];
+                _DelayTest = new SDelayTest[2];
                 for (int i = 0; i < _DelayTest.Length - 1; i++)
                 {
                     _DelayTest[i].Timer = new Stopwatch();
@@ -363,7 +338,7 @@ namespace Vocaluxe.Screens
                 }
             }
 
-            SelectSlides[htSelectSlides(SelectSlideDelay)].Selection = (int)(CConfig.MicDelay / 20);
+            _SelectSlides[_SelectSlideDelay].Selection = CConfig.MicDelay / 20;
 
             _DelayTestRunning = false;
             _DelaySound = -1;
@@ -377,38 +352,38 @@ namespace Vocaluxe.Screens
 
         public override bool Draw()
         {
-            DrawBG();
+            _DrawBG();
 
-            if (!CheckMicConfig())
+            if (!_CheckMicConfig())
             {
-                Statics[htStatics(StaticWarning)].Visible = true;
-                Texts[htTexts(TextWarning)].Visible = true;
+                _Statics[_StaticWarning].Visible = true;
+                _Texts[_TextWarning].Visible = true;
             }
             else
             {
-                Statics[htStatics(StaticWarning)].Visible = false;
-                Texts[htTexts(TextWarning)].Visible = false;
+                _Statics[_StaticWarning].Visible = false;
+                _Texts[_TextWarning].Visible = false;
             }
 
-            for (int i = 0; i < StaticEnergyChannel.Length; i++)
+            for (int i = 0; i < _StaticEnergyChannel.Length; i++)
             {
-                if (ChannelEnergy[i] > 0f)
+                if (_ChannelEnergy[i] > 0f)
                 {
-                    SRectF rect = new SRectF(Statics[htStatics(StaticEnergyChannel[i])].Rect.X,
-                        Statics[htStatics(StaticEnergyChannel[i])].Rect.Y,
-                        Statics[htStatics(StaticEnergyChannel[i])].Rect.W * ChannelEnergy[i],
-                        Statics[htStatics(StaticEnergyChannel[i])].Rect.H,
-                        Statics[htStatics(StaticEnergyChannel[i])].Rect.Z);
+                    SRectF rect = new SRectF(_Statics[_StaticEnergyChannel[i]].Rect.X,
+                                             _Statics[_StaticEnergyChannel[i]].Rect.Y,
+                                             _Statics[_StaticEnergyChannel[i]].Rect.W * _ChannelEnergy[i],
+                                             _Statics[_StaticEnergyChannel[i]].Rect.H,
+                                             _Statics[_StaticEnergyChannel[i]].Rect.Z);
 
-                    CDraw.DrawTexture(Statics[htStatics(StaticEnergyChannel[i])].Texture, Statics[htStatics(StaticEnergyChannel[i])].Rect,
-                        new SColorF(1f, 1f, 1f, 1f), rect);
+                    CDraw.DrawTexture(_Statics[_StaticEnergyChannel[i]].Texture, _Statics[_StaticEnergyChannel[i]].Rect,
+                                      new SColorF(1f, 1f, 1f, 1f), rect);
                 }
             }
 
-            Equalizers[htEqualizer(EqualizerChannel1)].Draw();
-            Equalizers[htEqualizer(EqualizerChannel2)].Draw();
+            _Equalizers[_EqualizerChannel1].Draw();
+            _Equalizers[_EqualizerChannel2].Draw();
 
-            DrawFG();
+            _DrawFG();
 
             return true;
         }
@@ -422,75 +397,48 @@ namespace Vocaluxe.Screens
             CBackgroundMusic.Disabled = false;
         }
 
-        private void OnDeviceEvent()
+        private void _OnDeviceEvent()
         {
-            if (SelectSlides[htSelectSlides(SelectSlideRecordDevices)].Selection != _DeviceNr)
+            if (_SelectSlides[_SelectSlideRecordDevices].Selection != _DeviceNr)
             {
-                SelectSlides[htSelectSlides(SelectSlideRecordInputs)].Clear();
-                _DeviceNr = SelectSlides[htSelectSlides(SelectSlideRecordDevices)].Selection;
-                _InputNr = 0;
-
-                for (int inp = 0; inp < _devices[_DeviceNr].Inputs.Count; inp++)
-                {
-                    SelectSlides[htSelectSlides(SelectSlideRecordInputs)].AddValue(_devices[_DeviceNr].Inputs[inp].Name);
-                }
-                _InputNr = 0;
-                SelectSlides[htSelectSlides(SelectSlideRecordInputs)].Selection = 0;
-                UpdateChannels();
+                _DeviceNr = _SelectSlides[_SelectSlideRecordDevices].Selection;
+                _UpdateChannels();
             }
         }
 
-        private void OnInputEvent()
+        private void _SaveDelayConfig()
         {
-            if (SelectSlides[htSelectSlides(SelectSlideRecordInputs)].Selection != _InputNr)
-            {
-                _InputNr = SelectSlides[htSelectSlides(SelectSlideRecordInputs)].Selection;
-
-                UpdateChannels();                
-            }
-        }
-
-        private void SaveDelayConfig()
-        {
-            CConfig.MicDelay = SelectSlides[htSelectSlides(SelectSlideDelay)].Selection * 20;
+            CConfig.MicDelay = _SelectSlides[_SelectSlideDelay].Selection * 20;
             CConfig.SaveConfig();
         }
-        
-        private void SaveMicConfig()
-        {
-			if (_devices == null)
-				return;
-			
-            CSound.RecordStop();
-            SetMicConfig();
 
-            if (CheckMicConfig())
+        private void _SaveMicConfig()
+        {
+            if (_Devices == null)
+                return;
+
+            CSound.RecordStop();
+            _SetMicConfig();
+
+            if (_CheckMicConfig())
             {
                 for (int p = 0; p < CSettings.MaxNumPlayer; p++)
-                {
                     CConfig.MicConfig[p].Channel = 0;
-                }
 
-                for (int dev = 0; dev < _devices.Length; dev++)
+                foreach (CRecordDevice device in _Devices)
                 {
-                    for (int inp = 0; inp < _devices[dev].Inputs.Count; inp++)
+                    if (device.PlayerChannel1 > 0)
                     {
-                        if (_devices[dev].Inputs[inp].PlayerChannel1 > 0)
-                        {
-                            CConfig.MicConfig[_devices[dev].Inputs[inp].PlayerChannel1 - 1].Channel = 1;
-                            CConfig.MicConfig[_devices[dev].Inputs[inp].PlayerChannel1 - 1].DeviceName = _devices[dev].Name;
-                            CConfig.MicConfig[_devices[dev].Inputs[inp].PlayerChannel1 - 1].DeviceDriver = _devices[dev].Driver;
-                            CConfig.MicConfig[_devices[dev].Inputs[inp].PlayerChannel1 - 1].InputName = _devices[dev].Inputs[inp].Name;
-                        }
+                        CConfig.MicConfig[device.PlayerChannel1 - 1].Channel = 1;
+                        CConfig.MicConfig[device.PlayerChannel1 - 1].DeviceName = device.Name;
+                        CConfig.MicConfig[device.PlayerChannel1 - 1].DeviceDriver = device.Driver;
+                    }
 
-                        if (_devices[dev].Inputs[inp].PlayerChannel2 > 0)
-                        {
-                            CConfig.MicConfig[_devices[dev].Inputs[inp].PlayerChannel2 - 1].Channel = 2;
-                            CConfig.MicConfig[_devices[dev].Inputs[inp].PlayerChannel2 - 1].DeviceName = _devices[dev].Name;
-                            CConfig.MicConfig[_devices[dev].Inputs[inp].PlayerChannel2 - 1].DeviceDriver = _devices[dev].Driver;
-                            CConfig.MicConfig[_devices[dev].Inputs[inp].PlayerChannel2 - 1].InputName = _devices[dev].Inputs[inp].Name;
-                        }
-
+                    if (device.PlayerChannel2 > 0)
+                    {
+                        CConfig.MicConfig[device.PlayerChannel2 - 1].Channel = 2;
+                        CConfig.MicConfig[device.PlayerChannel2 - 1].DeviceName = device.Name;
+                        CConfig.MicConfig[device.PlayerChannel2 - 1].DeviceDriver = device.Driver;
                     }
                 }
                 CConfig.SaveConfig();
@@ -498,95 +446,81 @@ namespace Vocaluxe.Screens
             CSound.RecordStart();
         }
 
-        private void SetMicConfig()
+        private void _SetMicConfig()
         {
             if (_DeviceNr < 0)
                 return;
-            SInput input = _devices[_DeviceNr].Inputs[_InputNr];
-            input.PlayerChannel1 = SelectSlides[htSelectSlides(SelectSlideRecordChannel1)].Selection;
-            input.PlayerChannel2 = SelectSlides[htSelectSlides(SelectSlideRecordChannel2)].Selection;
-            _devices[_DeviceNr].Inputs[_InputNr] = input;
+            CRecordDevice device = _Devices[_DeviceNr];
+            device.PlayerChannel1 = _SelectSlides[_SelectSlideRecordChannel1].Selection;
+            device.PlayerChannel2 = _SelectSlides[_SelectSlideRecordChannel2].Selection;
         }
 
-        private void UpdateChannels()
+        private void _UpdateChannels()
         {
-            SelectSlides[htSelectSlides(SelectSlideRecordChannel1)].Selection = _devices[_DeviceNr].Inputs[_InputNr].PlayerChannel1;
-            SelectSlides[htSelectSlides(SelectSlideRecordChannel2)].Selection = _devices[_DeviceNr].Inputs[_InputNr].PlayerChannel2;
+            _SelectSlides[_SelectSlideRecordChannel1].Selection = _Devices[_DeviceNr].PlayerChannel1;
+            _SelectSlides[_SelectSlideRecordChannel2].Selection = _Devices[_DeviceNr].PlayerChannel2;
 
-            SaveMicConfig();
+            _SaveMicConfig();
         }
 
-        private bool CheckMicConfig()
+        private bool _CheckMicConfig()
         {
-            bool[] IsSet = new bool[CSettings.MaxNumPlayer];
+            bool[] isSet = new bool[CSettings.MaxNumPlayer];
             for (int i = 0; i < CSettings.MaxNumPlayer; i++)
-			{
-			    IsSet[i] = false;
-			}
+                isSet[i] = false;
 
-            if (_devices == null)
-				return true;
-			
-            for (int dev = 0; dev < _devices.Length; dev++)
+            if (_Devices == null)
+                return true;
+
+            foreach (CRecordDevice device in _Devices)
             {
-                for (int inp = 0; inp < _devices[dev].Inputs.Count; inp++)
+                if (device.PlayerChannel1 > 0)
                 {
-                    if (_devices[dev].Inputs[inp].PlayerChannel1 > 0)
-                    {
-                        if (IsSet[_devices[dev].Inputs[inp].PlayerChannel1 - 1])
-                            return false;
+                    if (isSet[device.PlayerChannel1 - 1])
+                        return false;
 
-                        IsSet[_devices[dev].Inputs[inp].PlayerChannel1 - 1] = true;
-                    }
+                    isSet[device.PlayerChannel1 - 1] = true;
+                }
 
-                    if (_devices[dev].Inputs[inp].PlayerChannel2 > 0)
-                    {
-                        if (IsSet[_devices[dev].Inputs[inp].PlayerChannel2 - 1])
-                            return false;
+                if (device.PlayerChannel2 > 0)
+                {
+                    if (isSet[device.PlayerChannel2 - 1])
+                        return false;
 
-                        IsSet[_devices[dev].Inputs[inp].PlayerChannel2 - 1] = true;
-                    }
-  
+                    isSet[device.PlayerChannel2 - 1] = true;
                 }
             }
             return true;
         }
 
-        private void TestDelay()
+        private void _TestDelay()
         {
-            SaveMicConfig();
+            _SaveMicConfig();
 
             if (_DelayTest == null)
                 return;
 
             _DelaySound = CSound.PlaySound(ESounds.T440);
-            _DelayTestRunning = true; 
+            _DelayTestRunning = true;
         }
 
-        private void GetFirstConfiguredRecordDevice(ref int Device, ref int Input)
+        private void _GetFirstConfiguredRecordDevice(ref int device)
         {
-            if (_devices == null)
+            if (_Devices == null)
                 return;
 
             if (CConfig.MicConfig == null)
                 return;
-            
-            for (int i = 0; i < _devices.Length; i++)
+
+            if (CConfig.MicConfig[0].Channel <= 0)
+                return;
+
+            for (int i = 0; i < _Devices.Count; i++)
             {
-                if (_devices[i].Name == CConfig.MicConfig[0].DeviceName && _devices[i].Driver == CConfig.MicConfig[0].DeviceDriver)
+                if (_Devices[i].Name == CConfig.MicConfig[0].DeviceName && _Devices[i].Driver == CConfig.MicConfig[0].DeviceDriver)
                 {
-                    for (int j = 0; j < _devices[i].Inputs.Count; j++)
-                    {
-                        if (_devices[i].Inputs[j].Name == CConfig.MicConfig[0].InputName)
-                        {
-                            if (CConfig.MicConfig[0].Channel > 0)
-                            {
-                                Device = i;
-                                Input = j;
-                                return;
-                            }
-                        }
-                    }
+                    device = i;
+                    return;
                 }
             }
         }

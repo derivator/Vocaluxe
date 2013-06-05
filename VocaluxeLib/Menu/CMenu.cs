@@ -1,69 +1,60 @@
-﻿using System;
-using System.Collections;
+﻿#region license
+// /*
+//     This file is part of Vocaluxe.
+// 
+//     Vocaluxe is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+// 
+//     Vocaluxe is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+// 
+//     You should have received a copy of the GNU General Public License
+//     along with Vocaluxe. If not, see <http://www.gnu.org/licenses/>.
+//  */
+#endregion
+
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Text;
 using System.Windows.Forms;
 using System.Xml;
+using VocaluxeLib.Draw;
+using VocaluxeLib.Menu.SingNotes;
+using VocaluxeLib.Menu.SongMenu;
 
-using Vocaluxe.Menu.SingNotes;
-using Vocaluxe.Menu.SongMenu;
-
-namespace Vocaluxe.Menu
+namespace VocaluxeLib.Menu
 {
-    struct ZSort
+    struct SZSort
     {
         public int ID;
-        public float z;
+        public float Z;
     }
 
     public abstract class CMenu : IMenu
-    {        
+    {
         private List<CInteraction> _Interactions;
-        private int _Selection = 0;
+        private int _Selection;
         private string _ThemePath = String.Empty;
         protected int _PartyModeID = -1;
-                
-        private List<CBackground> _Backgrounds;
-        private List<CButton> _Buttons;
-        private List<CText> _Texts;
-        private List<CStatic> _Statics;
-        private List<CSelectSlide> _SelectSlides;
-        private List<CSongMenu> _SongMenus;
-        private List<CLyric> _Lyrics;
-        private List<CSingNotes> _SingNotes;
-        private List<CNameSelection> _NameSelections;
-        private List<CEqualizer> _Equalizers;
-        private List<CPlaylist> _Playlists;
-        private List<CParticleEffect> _ParticleEffects;
-        private List<CScreenSetting> _ScreenSettings;
-
-        private Hashtable _htBackgrounds;
-        private Hashtable _htStatics;
-        private Hashtable _htTexts;
-        private Hashtable _htButtons;
-        private Hashtable _htSongMenus;
-        private Hashtable _htLyrics;
-        private Hashtable _htSelectSlides;
-        private Hashtable _htSingNotes;
-        private Hashtable _htNameSelections;
-        private Hashtable _htEqualizers;
-        private Hashtable _htPlaylists;
-        private Hashtable _htParticleEffects;
-        private Hashtable _htScreenSettings;
-
 
         private int _PrevMouseX;
         private int _PrevMouseY;
 
-        protected int _MouseDX;
-        protected int _MouseDY;
+        private int _MouseDX;
+        private int _MouseDY;
 
         protected bool _Active;
 
-        protected int _ScreenVersion;
-        protected string _ThemeName;
+        protected abstract int _ScreenVersion { get; }
+        public string ThemeName { get; private set; }
+
+        // ReSharper disable MemberCanBePrivate.Global
         protected string[] _ThemeBackgrounds;
         protected string[] _ThemeStatics;
         protected string[] _ThemeTexts;
@@ -78,64 +69,49 @@ namespace Vocaluxe.Menu
         protected string[] _ThemeParticleEffects;
         protected string[] _ThemeScreenSettings;
 
-        protected SRectF _ScreenArea;
+        protected COrderedDictionaryLite<CButton> _Buttons { get; private set; }
+        protected COrderedDictionaryLite<CText> _Texts { get; private set; }
+        protected COrderedDictionaryLite<CBackground> _Backgrounds { get; private set; }
+        protected COrderedDictionaryLite<CStatic> _Statics { get; private set; }
+        protected COrderedDictionaryLite<CSelectSlide> _SelectSlides { get; private set; }
+        protected COrderedDictionaryLite<CSongMenu> _SongMenus { get; private set; }
+        protected COrderedDictionaryLite<CLyric> _Lyrics { get; private set; }
+        protected COrderedDictionaryLite<CSingNotes> _SingNotes { get; private set; }
+        protected COrderedDictionaryLite<CNameSelection> _NameSelections { get; private set; }
+        protected COrderedDictionaryLite<CEqualizer> _Equalizers { get; private set; }
+        protected COrderedDictionaryLite<CPlaylist> _Playlists { get; private set; }
+        protected COrderedDictionaryLite<CParticleEffect> _ParticleEffects { get; private set; }
+        protected COrderedDictionaryLite<CScreenSetting> _ScreenSettings { get; private set; }
+        // ReSharper restore MemberCanBePrivate.Global
 
+        protected SRectF _ScreenArea;
         public SRectF ScreenArea
         {
             get { return _ScreenArea; }
         }
 
-        public SRectF GetScreenArea()
+        public virtual void Init()
         {
-            return _ScreenArea;
-        }
+            ThemeName = GetType().Name;
+            if (ThemeName[0] == 'C' && Char.IsUpper(ThemeName[1]))
+                ThemeName = ThemeName.Remove(0, 1);
 
-        public int ThemeScreenVersion
-        {
-            get { return _ScreenVersion; }
-        }
-
-        public CMenu()
-        {
-        }
-
-        public void Initialize()
-        {
-            Init();
-        }
-
-        protected virtual void Init()
-        {
             _Interactions = new List<CInteraction>();
             _Selection = 0;
 
-            _Backgrounds = new List<CBackground>();
-            _Buttons = new List<CButton>();
-            _Texts = new List<CText>();
-            _Statics = new List<CStatic>();
-            _SelectSlides = new List<CSelectSlide>();
-            _SongMenus = new List<CSongMenu>();
-            _Lyrics = new List<CLyric>();
-            _SingNotes = new List<CSingNotes>();
-            _NameSelections = new List<CNameSelection>();
-            _Equalizers = new List<CEqualizer>();
-            _Playlists = new List<CPlaylist>();
-            _ParticleEffects = new List<CParticleEffect>();
-            _ScreenSettings = new List<CScreenSetting>();
-
-            _htBackgrounds = new Hashtable();
-            _htStatics = new Hashtable();
-            _htTexts = new Hashtable();
-            _htButtons = new Hashtable();
-            _htSongMenus = new Hashtable();
-            _htLyrics = new Hashtable();
-            _htSelectSlides = new Hashtable();
-            _htSingNotes = new Hashtable();
-            _htNameSelections = new Hashtable();
-            _htEqualizers = new Hashtable();
-            _htPlaylists = new Hashtable();
-            _htParticleEffects = new Hashtable();
-            _htScreenSettings = new Hashtable();
+            _Backgrounds = new COrderedDictionaryLite<CBackground>(this);
+            _Buttons = new COrderedDictionaryLite<CButton>(this);
+            _Texts = new COrderedDictionaryLite<CText>(this);
+            _Statics = new COrderedDictionaryLite<CStatic>(this);
+            _SelectSlides = new COrderedDictionaryLite<CSelectSlide>(this);
+            _SongMenus = new COrderedDictionaryLite<CSongMenu>(this);
+            _Lyrics = new COrderedDictionaryLite<CLyric>(this);
+            _SingNotes = new COrderedDictionaryLite<CSingNotes>(this);
+            _NameSelections = new COrderedDictionaryLite<CNameSelection>(this);
+            _Equalizers = new COrderedDictionaryLite<CEqualizer>(this);
+            _Playlists = new COrderedDictionaryLite<CPlaylist>(this);
+            _ParticleEffects = new COrderedDictionaryLite<CParticleEffect>(this);
+            _ScreenSettings = new COrderedDictionaryLite<CScreenSetting>(this);
 
             _PrevMouseX = 0;
             _PrevMouseY = 0;
@@ -145,8 +121,7 @@ namespace Vocaluxe.Menu
 
             _Active = false;
             _ScreenArea = new SRectF(0f, 0f, CBase.Settings.GetRenderW(), CBase.Settings.GetRenderH(), 0f);
-            
-            _ThemeName = String.Empty;
+
             _ThemeBackgrounds = null;
             _ThemeStatics = null;
             _ThemeTexts = null;
@@ -162,493 +137,238 @@ namespace Vocaluxe.Menu
             _ThemeScreenSettings = null;
         }
 
-        protected void FadeTo(EScreens NextScreen)
+        protected static void _FadeTo(EScreens nextScreen)
         {
-            CBase.Graphics.FadeTo(NextScreen);
+            CBase.Graphics.FadeTo(nextScreen);
         }
 
         #region ThemeHandler
-        public virtual void LoadTheme(string XmlPath)
+        private delegate void AddElementHandler<in T>(T element, String key);
+
+        private void _LoadThemeElement<T>(IEnumerable<string> elements, AddElementHandler<T> addElementHandler, CXMLReader xmlReader, int skinIndex) where T : IMenuElement
         {
-            string file = Path.Combine(XmlPath, _ThemeName + ".xml");
+            if (elements != null)
+            {
+                foreach (string elName in elements)
+                {
+                    T element = (T)Activator.CreateInstance(typeof(T), _PartyModeID);
+                    if (element.LoadTheme("//root/" + ThemeName, elName, xmlReader, skinIndex))
+                        addElementHandler(element, elName);
+                    else
+                        CBase.Log.LogError("Can't load " + typeof(T).Name.Substring(1) + " \"" + elName + "\" in screen " + ThemeName);
+                }
+            }
+        }
+
+        public virtual void LoadTheme(string xmlPath)
+        {
+            string file = Path.Combine(xmlPath, ThemeName + ".xml");
 
             CXMLReader xmlReader = CXMLReader.OpenFile(file);
             if (xmlReader == null)
                 return;
 
-            bool VersionCheck = false;
-            VersionCheck = CheckVersion(_ScreenVersion, xmlReader);
+            bool versionCheck = _CheckVersion(_ScreenVersion, xmlReader);
 
-            int SkinIndex = CBase.Theme.GetSkinIndex(_PartyModeID);
+            int skinIndex = CBase.Theme.GetSkinIndex(_PartyModeID);
 
-            if (VersionCheck && SkinIndex != -1)
+            if (versionCheck && skinIndex != -1)
             {
-                _ThemePath = XmlPath;
-                LoadThemeBasics(xmlReader, SkinIndex);
+                _ThemePath = xmlPath;
+                _LoadThemeBasics(xmlReader, skinIndex);
 
-                if (_ThemeBackgrounds != null)
-                {
-                    for (int i = 0; i < _ThemeBackgrounds.Length; i++)
-                    {
-                        CBackground background = new CBackground(_PartyModeID);
-                        if (background.LoadTheme("//root/" + _ThemeName, _ThemeBackgrounds[i], xmlReader, SkinIndex))
-                        {
-                            _htBackgrounds.Add(_ThemeBackgrounds[i], AddBackground(background));
-                        }
-                        else
-                        {
-                            CBase.Log.LogError("Can't load Background \"" + _ThemeBackgrounds[i] + "\" in screen " + _ThemeName);
-                        }
-                    }
-                }
-
-                if (_ThemeStatics != null)
-                {
-                    for (int i = 0; i < _ThemeStatics.Length; i++)
-                    {
-                        CStatic stat = new CStatic(_PartyModeID);
-                        if (stat.LoadTheme("//root/" + _ThemeName, _ThemeStatics[i], xmlReader, SkinIndex))
-                        {
-                            _htStatics.Add(_ThemeStatics[i], AddStatic(stat));
-                        }
-                        else
-                        {
-                            CBase.Log.LogError("Can't load Static \"" + _ThemeStatics[i] + "\" in screen " + _ThemeName);
-                        }
-                    }
-                }
-
-                if (_ThemeTexts != null)
-                {
-                    for (int i = 0; i < _ThemeTexts.Length; i++)
-                    {
-                        CText text = new CText(_PartyModeID);
-                        if (text.LoadTheme("//root/" + _ThemeName, _ThemeTexts[i], xmlReader, SkinIndex))
-                        {
-                            _htTexts.Add(_ThemeTexts[i], AddText(text));
-                        }
-                        else
-                        {
-                            CBase.Log.LogError("Can't load Text \"" + _ThemeTexts[i] + "\" in screen " + _ThemeName);
-                        }
-                    }
-                }
-
-                if (_ThemeButtons != null)
-                {
-                    for (int i = 0; i < _ThemeButtons.Length; i++)
-                    {
-                        CButton button = new CButton(_PartyModeID);
-                        if (button.LoadTheme("//root/" + _ThemeName, _ThemeButtons[i], xmlReader, SkinIndex))
-                        {
-                            _htButtons.Add(_ThemeButtons[i], AddButton(button));
-                        }
-                        else
-                        {
-                            CBase.Log.LogError("Can't load Button \"" + _ThemeButtons[i] + "\" in screen " + _ThemeName);
-                        }
-                    }
-                }
-
-                if (_ThemeSelectSlides != null)
-                {
-                    for (int i = 0; i < _ThemeSelectSlides.Length; i++)
-                    {
-                        CSelectSlide slide = new CSelectSlide(_PartyModeID);
-                        if (slide.LoadTheme("//root/" + _ThemeName, _ThemeSelectSlides[i], xmlReader, SkinIndex))
-                        {
-                            _htSelectSlides.Add(_ThemeSelectSlides[i], AddSelectSlide(slide));
-                        }
-                        else
-                        {
-                            CBase.Log.LogError("Can't load SelectSlide \"" + _ThemeSelectSlides[i] + "\" in screen " + _ThemeName);
-                        }
-                    }
-                }
-
-                if (_ThemeSongMenus != null)
-                {
-                    for (int i = 0; i < _ThemeSongMenus.Length; i++)
-                    {
-                        CSongMenu sm = new CSongMenu(_PartyModeID);
-                        if (sm.LoadTheme("//root/" + _ThemeName, _ThemeSongMenus[i], xmlReader, SkinIndex))
-                        {
-                            _htSongMenus.Add(_ThemeSongMenus[i], AddSongMenu(sm));
-                        }
-                        else
-                        {
-                            CBase.Log.LogError("Can't load SongMenu \"" + _ThemeSongMenus[i] + "\" in screen " + _ThemeName);
-                        }
-                    }
-                }
-
-                if (_ThemeLyrics != null)
-                {
-                    for (int i = 0; i < _ThemeLyrics.Length; i++)
-                    {
-                        CLyric lyric = new CLyric(_PartyModeID);
-                        if (lyric.LoadTheme("//root/" + _ThemeName, _ThemeLyrics[i], xmlReader, SkinIndex))
-                        {
-                            _htLyrics.Add(_ThemeLyrics[i], AddLyric(lyric));
-                        }
-                        else
-                        {
-                            CBase.Log.LogError("Can't load Lyric \"" + _ThemeLyrics[i] + "\" in screen " + _ThemeName);
-                        }
-                    }
-                }
-
-                if (_ThemeSingNotes != null)
-                {
-                    for (int i = 0; i < _ThemeSingNotes.Length; i++)
-                    {
-                        CSingNotes notes = new CSingNotesClassic(_PartyModeID);
-                        if (notes.LoadTheme("//root/" + _ThemeName, _ThemeSingNotes[i], xmlReader, SkinIndex))
-                        {
-                            _htSingNotes.Add(_ThemeSingNotes[i], AddSingNote(notes));
-                        }
-                        else
-                        {
-                            CBase.Log.LogError("Can't load SingBar \"" + _ThemeSingNotes[i] + "\" in screen " + _ThemeName);
-                        }
-                    }
-                }
-
-                if (_ThemeNameSelections != null)
-                {
-                    for (int i = 0; i < _ThemeNameSelections.Length; i++)
-                    {
-                        CNameSelection nsel = new CNameSelection(_PartyModeID);
-                        if (nsel.LoadTheme("//root/" + _ThemeName, _ThemeNameSelections[i], xmlReader, SkinIndex))
-                        {
-                            _htNameSelections.Add(_ThemeNameSelections[i], AddNameSelection(nsel));
-                        }
-                        else
-                        {
-                            CBase.Log.LogError("Can't load NameSelection \"" + _ThemeNameSelections[i] + "\" in screen " + _ThemeName);
-                        }
-                    }
-                }
-
-                if (_ThemeEqualizers != null)
-                {
-                    for (int i = 0; i < _ThemeEqualizers.Length; i++)
-                    {
-                        CEqualizer eq = new CEqualizer(_PartyModeID);
-                        if (eq.LoadTheme("//root/" + _ThemeName, _ThemeEqualizers[i], xmlReader, SkinIndex))
-                        {
-                            _htEqualizers.Add(_ThemeEqualizers[i], AddEqualizer(eq));
-                        }
-                        else
-                        {
-                            CBase.Log.LogError("Can't load equalizer \"" + _ThemeEqualizers[i] + "\" in screen " + _ThemeName);
-                        }
-                    }
-                }
-
-                if (_ThemePlaylists != null)
-                {
-                    for (int i = 0; i < _ThemePlaylists.Length; i++)
-                    {
-                        CPlaylist pls = new CPlaylist(_PartyModeID);
-                        if (pls.LoadTheme("//root/" + _ThemeName, _ThemePlaylists[i], xmlReader, SkinIndex))
-                        {
-                            _htPlaylists.Add(_ThemePlaylists[i], AddPlaylist(pls));
-                        }
-                        else
-                        {
-                            CBase.Log.LogError("Can't load Playlist \"" + _ThemePlaylists[i] + "\" in screen " + _ThemeName);
-                        }
-                    }
-                }
-
-                if (_ThemeParticleEffects != null)
-                {
-                    for (int i = 0; i < _ThemeParticleEffects.Length; i++)
-                    {
-                        CParticleEffect pe = new CParticleEffect(_PartyModeID);
-                        if (pe.LoadTheme("//root/" + _ThemeName, _ThemeParticleEffects[i], xmlReader, SkinIndex))
-                        {
-                            _htParticleEffects.Add(_ThemeParticleEffects[i], AddParticleEffect(pe));
-                        }
-                        else
-                        {
-                            CBase.Log.LogError("Can't load ParticleEffect \"" + _ThemeParticleEffects[i] + "\" in screen " + _ThemeName);
-                        }
-                    }
-                }
-
-                if (_ThemeScreenSettings != null)
-                {
-                    for (int i = 0; i < _ThemeScreenSettings.Length; i++)
-                    {
-                        CScreenSetting se = new CScreenSetting(_PartyModeID);
-                        if (se.LoadTheme("//root/" + _ThemeName, _ThemeScreenSettings[i], xmlReader, SkinIndex))
-                        {
-                            _htScreenSettings.Add(_ThemeScreenSettings[i], AddScreenSetting(se));
-                        }
-                        else
-                        {
-                            CBase.Log.LogError("Can't load ThemeSetting \"" + _ThemeScreenSettings[i] + "\" in screen " + _ThemeName);
-                        }
-                    }
-                }
+                _LoadThemeElement<CBackground>(_ThemeBackgrounds, _AddBackground, xmlReader, skinIndex);
+                _LoadThemeElement<CStatic>(_ThemeStatics, _AddStatic, xmlReader, skinIndex);
+                _LoadThemeElement<CText>(_ThemeTexts, _AddText, xmlReader, skinIndex);
+                _LoadThemeElement<CButton>(_ThemeButtons, _AddButton, xmlReader, skinIndex);
+                _LoadThemeElement<CSelectSlide>(_ThemeSelectSlides, _AddSelectSlide, xmlReader, skinIndex);
+                _LoadThemeElement<CSongMenu>(_ThemeSongMenus, _AddSongMenu, xmlReader, skinIndex);
+                _LoadThemeElement<CLyric>(_ThemeLyrics, _AddLyric, xmlReader, skinIndex);
+                _LoadThemeElement<CSingNotesClassic>(_ThemeSingNotes, _AddSingNote, xmlReader, skinIndex);
+                _LoadThemeElement<CNameSelection>(_ThemeNameSelections, _AddNameSelection, xmlReader, skinIndex);
+                _LoadThemeElement<CEqualizer>(_ThemeEqualizers, _AddEqualizer, xmlReader, skinIndex);
+                _LoadThemeElement<CPlaylist>(_ThemePlaylists, _AddPlaylist, xmlReader, skinIndex);
+                _LoadThemeElement<CParticleEffect>(_ThemeParticleEffects, _AddParticleEffect, xmlReader, skinIndex);
+                _LoadThemeElement<CScreenSetting>(_ThemeScreenSettings, _AddScreenSetting, xmlReader, skinIndex);
             }
         }
 
         public virtual void SaveTheme()
         {
-            if (_ThemePath == String.Empty)
+            if (_ThemePath == "")
                 return;
 
-            XmlWriterSettings settings = new XmlWriterSettings();
-            settings.Indent = true; 
-            settings.Encoding = Encoding.UTF8;
-            settings.ConformanceLevel = ConformanceLevel.Document;
+            XmlWriterSettings settings = new XmlWriterSettings {Indent = true, Encoding = Encoding.UTF8, ConformanceLevel = ConformanceLevel.Document};
 
-            string file = Path.Combine(_ThemePath, _ThemeName + ".xml");
-            XmlWriter writer = XmlWriter.Create(file, settings);
-
-            writer.WriteStartDocument();
-            writer.WriteStartElement("root");
-
-            writer.WriteStartElement(_ThemeName);
-
-            // Screen Version
-            writer.WriteElementString("ScreenVersion", _ScreenVersion.ToString());
-
-            // Backgrounds
-            for (int i = 0; i < _Backgrounds.Count; i++)
-                _Backgrounds[i].SaveTheme(writer);
-
-            // Statics
-            for (int i = 0; i < _Statics.Count; i++)
-                _Statics[i].SaveTheme(writer);
-
-            // Texts
-            for (int i = 0; i < _Texts.Count; i++)
+            string file = Path.Combine(_ThemePath, ThemeName + ".xml");
+            using (XmlWriter writer = XmlWriter.Create(file, settings))
             {
-                _Texts[i].SaveTheme(writer);
+                writer.WriteStartDocument();
+                writer.WriteStartElement("root");
+
+                writer.WriteStartElement(ThemeName);
+
+                // Screen Version
+                writer.WriteElementString("ScreenVersion", _ScreenVersion.ToString());
+
+                // Backgrounds
+                foreach (CBackground bg in _Backgrounds)
+                    bg.SaveTheme(writer);
+
+                // Statics
+                foreach (CStatic st in _Statics)
+                    st.SaveTheme(writer);
+
+                // Texts
+                foreach (CText txt in _Texts)
+                    txt.SaveTheme(writer);
+
+                // Buttons
+                foreach (CButton bt in _Buttons)
+                    bt.SaveTheme(writer);
+
+                // SelectSlides
+                foreach (CSelectSlide ss in _SelectSlides)
+                    ss.SaveTheme(writer);
+
+                // SongMenus
+                foreach (CSongMenu sm in _SongMenus)
+                    sm.SaveTheme(writer);
+
+                // Lyrics
+                foreach (CLyric ly in _Lyrics)
+                    ly.SaveTheme(writer);
+
+                // SingBars
+                foreach (CSingNotes sn in _SingNotes)
+                    sn.SaveTheme(writer);
+
+                // NameSelections
+                foreach (CNameSelection ns in _NameSelections)
+                    ns.SaveTheme(writer);
+
+                //Equalizers
+                foreach (CEqualizer eq in _Equalizers)
+                    eq.SaveTheme(writer);
+
+                //Playlists
+                foreach (CPlaylist pl in _Playlists)
+                    pl.SaveTheme(writer);
+
+                //ParticleEffects
+                foreach (CParticleEffect pa in _ParticleEffects)
+                    pa.SaveTheme(writer);
+
+                //ScreenSettings
+                foreach (CScreenSetting cs in _ScreenSettings)
+                    cs.SaveTheme(writer);
+
+                writer.WriteEndElement();
+
+                // End of File
+                writer.WriteEndElement(); //end of root
+                writer.WriteEndDocument();
+
+                writer.Flush();
             }
-
-            // Buttons
-            for (int i = 0; i < _Buttons.Count; i++)
-            {
-                _Buttons[i].SaveTheme(writer);
-            }
-
-            // SelectSlides
-            for (int i = 0; i < _SelectSlides.Count; i++)
-            {
-                _SelectSlides[i].SaveTheme(writer);
-            }
-
-            // SongMenus
-            for (int i = 0; i < _SongMenus.Count; i++)
-            {
-                _SongMenus[i].SaveTheme(writer);
-            }
-
-            // Lyrics
-            for (int i = 0; i < _Lyrics.Count; i++)
-            {
-                _Lyrics[i].SaveTheme(writer);
-            }
-
-            // SingBars
-            for (int i = 0; i < _SingNotes.Count; i++)
-            {
-                _SingNotes[i].SaveTheme(writer);
-            }
-
-            // NameSelections
-            for (int i = 0; i < _NameSelections.Count; i++)
-            {
-                _NameSelections[i].SaveTheme(writer);
-            }
-
-            //Equalizers
-            for (int i = 0; i < _Equalizers.Count; i++)
-            {
-                _Equalizers[i].SaveTheme(writer);
-            }
-
-            //Playlists
-            for (int i = 0; i < _Playlists.Count; i++)
-            {
-                _Playlists[i].SaveTheme(writer);
-            }
-
-            //ParticleEffects
-            for (int i = 0; i < _ParticleEffects.Count; i++)
-            {
-                _ParticleEffects[i].SaveTheme(writer);
-            }
-
-            //ScreenSettings
-            for (int i = 0; i < _ScreenSettings.Count; i++)
-            {
-                _ScreenSettings[i].SaveTheme(writer);
-            }
-
-            writer.WriteEndElement();
-
-            // End of File
-            writer.WriteEndElement(); //end of root
-            writer.WriteEndDocument();
-
-            writer.Flush();
-            writer.Close();
         }
 
         public virtual void ReloadTextures()
         {
             foreach (CBackground background in _Backgrounds)
-            {
                 background.ReloadTextures();
-            }
 
             foreach (CButton button in _Buttons)
-            {
                 button.ReloadTextures();
-            }
 
             foreach (CText text in _Texts)
-            {
                 text.ReloadTextures();
-            }
 
             foreach (CStatic stat in _Statics)
-            {
                 stat.ReloadTextures();
-            }
 
             foreach (CSelectSlide slide in _SelectSlides)
-            {
                 slide.ReloadTextures();
-            }
 
             foreach (CSongMenu sm in _SongMenus)
-            {
                 sm.ReloadTextures();
-            }
 
             foreach (CLyric lyric in _Lyrics)
-            {
                 lyric.ReloadTextures();
-            }
 
             foreach (CSingNotes sn in _SingNotes)
-            {
                 sn.ReloadTextures();
-            }
 
             foreach (CNameSelection ns in _NameSelections)
-            {
                 ns.ReloadTextures();
-            }
 
             foreach (CEqualizer eq in _Equalizers)
-            {
                 eq.ReloadTextures();
-            }
 
             foreach (CPlaylist pls in _Playlists)
-            {
                 pls.ReloadTextures();
-            }
 
             foreach (CParticleEffect pe in _ParticleEffects)
-            {
                 pe.ReloadTextures();
-            }
 
             foreach (CScreenSetting se in _ScreenSettings)
-            {
                 se.ReloadTextures();
-            }
         }
 
         public virtual void UnloadTextures()
         {
             foreach (CBackground background in _Backgrounds)
-            {
                 background.UnloadTextures();
-            }
 
             foreach (CButton button in _Buttons)
-            {
                 button.UnloadTextures();
-            }
 
             foreach (CText text in _Texts)
-            {
                 text.UnloadTextures();
-            }
 
             foreach (CStatic stat in _Statics)
-            {
                 stat.UnloadTextures();
-            }
 
             foreach (CSelectSlide slide in _SelectSlides)
-            {
                 slide.UnloadTextures();
-            }
 
             foreach (CSongMenu sm in _SongMenus)
-            {
                 sm.UnloadTextures();
-            }
 
             foreach (CLyric lyric in _Lyrics)
-            {
                 lyric.UnloadTextures();
-            }
 
             foreach (CSingNotes sn in _SingNotes)
-            {
                 sn.UnloadTextures();
-            }
 
             foreach (CNameSelection ns in _NameSelections)
-            {
                 ns.UnloadTextures();
-            }
             foreach (CPlaylist pls in _Playlists)
-            {
                 pls.UnloadTextures();
-            }
 
             foreach (CEqualizer eq in _Equalizers)
-            {
                 eq.UnloadTextures();
-            }
 
             foreach (CParticleEffect pe in _ParticleEffects)
-            {
                 pe.UnloadTextures();
-            }
 
             foreach (CScreenSetting se in _ScreenSettings)
-            {
                 se.UnloadTextures();
-            }
         }
 
-        public virtual void ReloadTheme(string XmlPath)
+        public virtual void ReloadTheme(string xmlPath)
         {
-            if (_ThemePath == String.Empty)
+            if (_ThemePath == "")
                 return;
 
             UnloadTextures();
             Init();
-            LoadTheme(XmlPath);
+            LoadTheme(xmlPath);
         }
         #endregion ThemeHandler
 
         #region GetLists
-        public List<CButton> GetButtons()
+        /*public List<CButton> GetButtons()
         {
             return _Buttons;
         }
@@ -711,17 +431,20 @@ namespace Vocaluxe.Menu
         public List<CScreenSetting> GetScreenSettings()
         {
             return _ScreenSettings;
-        }
+        }*/
         #endregion GetLists
 
         #region ElementHandler
+
         #region Create Elements
+        // ReSharper disable UnusedMember.Global
+        // ReSharper disable MemberCanBeProtected.Global
         public CButton GetNewButton()
         {
             return new CButton(_PartyModeID);
         }
 
-        public CButton GetNewButton(CButton button)
+        public static CButton GetNewButton(CButton button)
         {
             return new CButton(button);
         }
@@ -731,16 +454,15 @@ namespace Vocaluxe.Menu
             return new CText(_PartyModeID);
         }
 
-        public CText GetNewText(CText text)
+        public static CText GetNewText(CText text)
         {
             return new CText(text);
         }
 
-        public CText GetNewText(float x, float y, float z, float h, float mw, EAlignment align, EStyle style, string font, SColorF col, string text)
+        public static CText GetNewText(float x, float y, float z, float h, float mw, EAlignment align, EStyle style, string font, SColorF col, string text)
         {
             return new CText(x, y, z, h, mw, align, style, font, col, text);
         }
-
 
         public CBackground GetNewBackground()
         {
@@ -752,14 +474,14 @@ namespace Vocaluxe.Menu
             return new CStatic(_PartyModeID);
         }
 
-        public CStatic GetNewStatic(CStatic Static)
+        public static CStatic GetNewStatic(CStatic oldStatic)
         {
-            return new CStatic(Static);
+            return new CStatic(oldStatic);
         }
 
-        public CStatic GetNewStatic(STexture Texture, SColorF Color, SRectF Rect)
+        public CStatic GetNewStatic(CTexture texture, SColorF color, SRectF rect)
         {
-            return new CStatic(_PartyModeID, Texture, Color, Rect);
+            return new CStatic(_PartyModeID, texture, color, rect);
         }
 
         public CSelectSlide GetNewSelectSlide()
@@ -767,7 +489,7 @@ namespace Vocaluxe.Menu
             return new CSelectSlide(_PartyModeID);
         }
 
-        public CSelectSlide GetNewSelectSlide(CSelectSlide slide)
+        public static CSelectSlide GetNewSelectSlide(CSelectSlide slide)
         {
             return new CSelectSlide(slide);
         }
@@ -802,409 +524,130 @@ namespace Vocaluxe.Menu
             return new CPlaylist(_PartyModeID);
         }
 
-        public CParticleEffect GetNewParticleEffect(int MaxNumber, SColorF Color, SRectF Area, STexture Texture, float Size, EParticleType Type)
+        public CParticleEffect GetNewParticleEffect(int maxNumber, SColorF color, SRectF area, CTexture texture, float size, EParticleType type)
         {
-            return new CParticleEffect(_PartyModeID, MaxNumber, Color, Area, Texture, Size, Type);
+            return new CParticleEffect(_PartyModeID, maxNumber, color, area, texture, size, type);
         }
+
+        // ReSharper restore MemberCanBeProtected.Global
+        // ReSharper restore UnusedMember.Global
         #endregion Create Elements
 
-        #region Get Arrays
-        public CButton[] Buttons
-        {
-            get
-            {
-                return _Buttons.ToArray();
-            }
-        }
-
-        public CText[] Texts
-        {
-            get
-            {
-                return _Texts.ToArray();
-            }
-        }
-
-        public CBackground[] Backgrounds
-        {
-            get
-            {
-                return _Backgrounds.ToArray();
-            }
-        }
-
-        public CStatic[] Statics
-        {
-            get
-            {
-                return _Statics.ToArray();
-            }
-        }
-
-        public CSelectSlide[] SelectSlides
-        {
-            get
-            {
-                return _SelectSlides.ToArray();
-            }
-        }
-
-        public CSongMenu[] SongMenus
-        {
-            get
-            {
-                return _SongMenus.ToArray();
-            }
-        }
-
-        public CLyric[] Lyrics
-        {
-            get
-            {
-                return _Lyrics.ToArray();
-            }
-        }
-
-        public CSingNotes[] SingNotes
-        {
-            get
-            {
-                return _SingNotes.ToArray();
-            }
-        }
-
-        public CNameSelection[] NameSelections
-        {
-            get
-            {
-                return _NameSelections.ToArray();
-            }
-        }
-
-        public CEqualizer[] Equalizers
-        {
-            get
-            {
-                return _Equalizers.ToArray();
-            }
-        }
-
-        public CPlaylist[] Playlists
-        {
-            get
-            {
-                return _Playlists.ToArray();
-            }
-        }
-
-        public CParticleEffect[] ParticleEffects
-        {
-            get
-            {
-                return _ParticleEffects.ToArray();
-            }
-        }
-
-        public CScreenSetting[] ScreenSettings
-        {
-            get
-            {
-                return _ScreenSettings.ToArray();
-            }
-        }
-        #endregion Get Arrays
-
-        #region Hashtables
-        public int htBackgrounds(string key)
-        {
-            try
-            {
-                return (int)_htBackgrounds[key];
-            }
-            catch (Exception)
-            {
-                CBase.Log.LogError("Can't find Background Element \"" + key + "\" in Screen " + _ThemeName);
-                throw;
-            }
-        }
-
-        public int htStatics(string key)
-        {
-            try
-            {
-                return (int)_htStatics[key];
-            }
-            catch (Exception)
-            {
-                CBase.Log.LogError("Can't find Statics Element \"" + key + "\" in Screen " + _ThemeName);
-                throw;
-            }
-        }
-
-        public int htTexts(string key)
-        {
-            try
-            {
-                return (int)_htTexts[key];
-            }
-            catch (Exception)
-            {
-                CBase.Log.LogError("Can't find Text Element \"" + key + "\" in Screen " + _ThemeName);
-                throw;
-            }
-        }
-
-        public int htButtons(string key)
-        {
-            try
-            {
-                return (int)_htButtons[key];
-            }
-            catch (Exception)
-            {
-                CBase.Log.LogError("Can't find Button Element \"" + key + "\" in Screen " + _ThemeName);
-                throw;
-            }
-        }
-
-        public int htSongMenus(string key)
-        {
-            try
-            {
-                return (int)_htSongMenus[key];
-            }
-            catch (Exception)
-            {
-                CBase.Log.LogError("Can't find SongMenu Element \"" + key + "\" in Screen " + _ThemeName);
-                throw;
-            }
-        }
-
-        public int htLyrics(string key)
-        {
-            try
-            {
-                return (int)_htLyrics[key];
-            }
-            catch (Exception)
-            {
-                CBase.Log.LogError("Can't find Lyric Element \"" + key + "\" in Screen " + _ThemeName);
-                throw;
-            }
-        }
-
-        public int htSelectSlides(string key)
-        {
-            try
-            {
-                return (int)_htSelectSlides[key];
-            }
-            catch (Exception)
-            {
-                CBase.Log.LogError("Can't find SelectSlide Element \"" + key + "\" in Screen " + _ThemeName);
-                throw;
-            }
-        }
-
-        public int htSingNotes(string key)
-        {
-            try
-            {
-                return (int)_htSingNotes[key];
-            }
-            catch (Exception)
-            {
-                CBase.Log.LogError("Can't find SingBar Element \"" + key + "\" in Screen " + _ThemeName);
-                throw;
-            }
-        }
-
-        public int htNameSelections(string key)
-        {
-            try
-            {
-                return (int)_htNameSelections[key];
-            }
-            catch (Exception)
-            {
-                CBase.Log.LogError("Can't find NameSelection Element \"" + key + "\" in Screen " + _ThemeName);
-                throw;
-            }
-        }
-
-        public int htEqualizer(string key)
-        {
-            try
-            {
-                return (int)_htEqualizers[key];
-            }
-            catch (Exception)
-            {
-                CBase.Log.LogError("Can't find Equalizer Element \"" + key + "\" in Screen " + _ThemeName);
-                throw;
-            }
-        }
-
-        public int htPlaylists(string key)
-        {
-            try
-            {
-                return (int)_htPlaylists[key];
-            }
-            catch (Exception)
-            {
-                CBase.Log.LogError("Can't find Playlist Element \"" + key + "\" in Screen " + _ThemeName);
-                throw;
-            }
-        }
-
-        public int htParticleEffects(string key)
-        {
-            try
-            {
-                return (int)_htParticleEffects[key];
-            }
-            catch (Exception)
-            {
-                CBase.Log.LogError("Can't find ParticleEffect Element \"" + key + "\" in Screen " + _ThemeName);
-                throw;
-            }
-        }
-
-        public int htScreenSettings(string key)
-        {
-            try
-            {
-                return (int)_htScreenSettings[key];
-            }
-            catch (Exception)
-            {
-                CBase.Log.LogError("Can't find ScreenSetting Element \"" + key + "\" in Screen " + _ThemeName);
-                throw;
-            }
-        }
-        #endregion Hashtables
         #endregion ElementHandler
 
         #region MenuHandler
-        public virtual bool HandleInput(KeyEvent KeyEvent)
+        public virtual bool HandleInput(SKeyEvent keyEvent)
         {
             if (!CBase.Settings.IsTabNavigation())
             {
-                if (KeyEvent.Key == Keys.Left)
+                if (keyEvent.Key == Keys.Left)
                 {
-                    if (_Interactions.Count > 0 && _Interactions[_Selection].Type == EType.TSelectSlide && KeyEvent.Mod != EModifier.Shift)
-                        KeyEvent.Handled = PrevElement();
+                    if (_Interactions.Count > 0 && _Interactions[_Selection].Type == EType.SelectSlide && keyEvent.Mod != EModifier.Shift)
+                        keyEvent.Handled = PrevElement();
                     else
-                        KeyEvent.Handled = _NextInteraction(KeyEvent);
+                        keyEvent.Handled = _NextInteraction(keyEvent);
                 }
 
-                if (KeyEvent.Key == Keys.Right)
+                if (keyEvent.Key == Keys.Right)
                 {
-                    if (_Interactions.Count > 0 && _Interactions[_Selection].Type == EType.TSelectSlide && KeyEvent.Mod != EModifier.Shift)
-                        KeyEvent.Handled = NextElement();
+                    if (_Interactions.Count > 0 && _Interactions[_Selection].Type == EType.SelectSlide && keyEvent.Mod != EModifier.Shift)
+                        keyEvent.Handled = NextElement();
                     else
-                        KeyEvent.Handled = _NextInteraction(KeyEvent);
+                        keyEvent.Handled = _NextInteraction(keyEvent);
                 }
 
-                if (KeyEvent.Key == Keys.Up || KeyEvent.Key == Keys.Down)
-                {
-                    KeyEvent.Handled = _NextInteraction(KeyEvent);
-                }
+                if (keyEvent.Key == Keys.Up || keyEvent.Key == Keys.Down)
+                    keyEvent.Handled = _NextInteraction(keyEvent);
             }
             else
             {
-                if (KeyEvent.Key == Keys.Tab)
+                if (keyEvent.Key == Keys.Tab)
                 {
-                    if (KeyEvent.Mod == EModifier.Shift)
+                    if (keyEvent.Mod == EModifier.Shift)
                         PrevInteraction();
                     else
                         NextInteraction();
                 }
 
-                if (KeyEvent.Key == Keys.Left)
+                if (keyEvent.Key == Keys.Left)
                     PrevElement();
 
-                if (KeyEvent.Key == Keys.Right)
+                if (keyEvent.Key == Keys.Right)
                     NextElement();
             }
-            
+
             return true;
         }
 
-        public virtual bool HandleMouse(MouseEvent MouseEvent)
+        public virtual bool HandleMouse(SMouseEvent mouseEvent)
         {
             int selection = _Selection;
-            ProcessMouseMove(MouseEvent.X, MouseEvent.Y);
+            ProcessMouseMove(mouseEvent.X, mouseEvent.Y);
             if (selection != _Selection)
             {
                 _UnsetHighlighted(selection);
                 _SetHighlighted(_Selection);
             }
 
-            if (MouseEvent.LB)
-                ProcessMouseClick(MouseEvent.X, MouseEvent.Y);
+            if (mouseEvent.LB)
+                ProcessMouseClick(mouseEvent.X, mouseEvent.Y);
 
-            _PrevMouseX = MouseEvent.X;
-            _PrevMouseY = MouseEvent.Y;
+            _PrevMouseX = mouseEvent.X;
+            _PrevMouseY = mouseEvent.Y;
 
             return true;
         }
 
-        public virtual bool HandleInputThemeEditor(KeyEvent KeyEvent)
+        public virtual bool HandleInputThemeEditor(SKeyEvent keyEvent)
         {
             _UnsetHighlighted(_Selection);
-            if (KeyEvent.KeyPressed)
+            if (!keyEvent.KeyPressed)
             {
-                
-            }
-            else
-            {
-                switch (KeyEvent.Key)
+                switch (keyEvent.Key)
                 {
                     case Keys.S:
                         CBase.Graphics.SaveTheme();
                         break;
 
                     case Keys.R:
-                        ReloadThemeEditMode();
+                        _ReloadThemeEditMode();
                         break;
 
                     case Keys.Up:
-                        if (KeyEvent.Mod == EModifier.Ctrl)
-                            MoveElement(0, -1);
+                        if (keyEvent.Mod == EModifier.Ctrl)
+                            _MoveElement(0, -1);
 
-                        if (KeyEvent.Mod == EModifier.Shift)
-                            ResizeElement(0, 1);
+                        if (keyEvent.Mod == EModifier.Shift)
+                            _ResizeElement(0, 1);
 
                         break;
                     case Keys.Down:
-                        if (KeyEvent.Mod == EModifier.Ctrl)
-                            MoveElement(0, 1);
+                        if (keyEvent.Mod == EModifier.Ctrl)
+                            _MoveElement(0, 1);
 
-                        if (KeyEvent.Mod == EModifier.Shift)
-                            ResizeElement(0, -1);
+                        if (keyEvent.Mod == EModifier.Shift)
+                            _ResizeElement(0, -1);
 
                         break;
 
                     case Keys.Right:
-                        if (KeyEvent.Mod == EModifier.Ctrl)
-                            MoveElement(1, 0);
+                        if (keyEvent.Mod == EModifier.Ctrl)
+                            _MoveElement(1, 0);
 
-                        if (KeyEvent.Mod == EModifier.Shift)
-                            ResizeElement(1, 0);
+                        if (keyEvent.Mod == EModifier.Shift)
+                            _ResizeElement(1, 0);
 
-                        if (KeyEvent.Mod == EModifier.None)
+                        if (keyEvent.Mod == EModifier.None)
                             NextInteraction();
                         break;
                     case Keys.Left:
-                        if (KeyEvent.Mod == EModifier.Ctrl)
-                            MoveElement(-1, 0);
+                        if (keyEvent.Mod == EModifier.Ctrl)
+                            _MoveElement(-1, 0);
 
-                        if (KeyEvent.Mod == EModifier.Shift)
-                            ResizeElement(-1, 0);
+                        if (keyEvent.Mod == EModifier.Shift)
+                            _ResizeElement(-1, 0);
 
-                        if (KeyEvent.Mod == EModifier.None)
+                        if (keyEvent.Mod == EModifier.None)
                             PrevInteraction();
                         break;
                 }
@@ -1212,259 +655,217 @@ namespace Vocaluxe.Menu
             return true;
         }
 
-        public virtual bool HandleMouseThemeEditor(MouseEvent MouseEvent)
+        public virtual bool HandleMouseThemeEditor(SMouseEvent mouseEvent)
         {
             _UnsetHighlighted(_Selection);
-            _MouseDX = MouseEvent.X - _PrevMouseX;
-            _MouseDY = MouseEvent.Y - _PrevMouseY;
+            _MouseDX = mouseEvent.X - _PrevMouseX;
+            _MouseDY = mouseEvent.Y - _PrevMouseY;
 
             int stepX = 0;
             int stepY = 0;
 
-            if ((MouseEvent.Mod & EModifier.Ctrl) == EModifier.Ctrl)
+            if ((mouseEvent.Mod & EModifier.Ctrl) == EModifier.Ctrl)
             {
-                _PrevMouseX = MouseEvent.X;
-                _PrevMouseY = MouseEvent.Y;
+                _PrevMouseX = mouseEvent.X;
+                _PrevMouseY = mouseEvent.Y;
             }
             else
             {
-                while (Math.Abs(MouseEvent.X - _PrevMouseX) >= 5)
+                while (Math.Abs(mouseEvent.X - _PrevMouseX) >= 5)
                 {
-                    if (MouseEvent.X - _PrevMouseX >= 5)
+                    if (mouseEvent.X - _PrevMouseX >= 5)
                         stepX += 5;
 
-                    if (MouseEvent.X - _PrevMouseX <= -5)
+                    if (mouseEvent.X - _PrevMouseX <= -5)
                         stepX -= 5;
- 
-                    _PrevMouseX = MouseEvent.X - (_MouseDX - stepX);
+
+                    _PrevMouseX = mouseEvent.X - (_MouseDX - stepX);
                 }
 
-                while (Math.Abs(MouseEvent.Y - _PrevMouseY) >= 5)
+                while (Math.Abs(mouseEvent.Y - _PrevMouseY) >= 5)
                 {
-                    if (MouseEvent.Y - _PrevMouseY >= 5)
+                    if (mouseEvent.Y - _PrevMouseY >= 5)
                         stepY += 5;
 
-                    if (MouseEvent.Y - _PrevMouseY <= -5)
+                    if (mouseEvent.Y - _PrevMouseY <= -5)
                         stepY -= 5;
 
-                    _PrevMouseY = MouseEvent.Y - (_MouseDY - stepY);
+                    _PrevMouseY = mouseEvent.Y - (_MouseDY - stepY);
                 }
             }
-            
-            if (MouseEvent.LBH)
+
+            if (mouseEvent.LBH)
             {
                 //if (IsMouseOver(MouseEvent.X, _PrevMouseY))
                 //{
-                    if (MouseEvent.Mod == EModifier.None)
-                        MoveElement(stepX, stepY);
+                if (mouseEvent.Mod == EModifier.None)
+                    _MoveElement(stepX, stepY);
 
-                    if (MouseEvent.Mod == EModifier.Ctrl)
-                        MoveElement(_MouseDX, _MouseDY);
+                if (mouseEvent.Mod == EModifier.Ctrl)
+                    _MoveElement(_MouseDX, _MouseDY);
 
-                    if (MouseEvent.Mod == EModifier.Shift)
-                        ResizeElement(stepX, stepY);
+                if (mouseEvent.Mod == EModifier.Shift)
+                    _ResizeElement(stepX, stepY);
 
-                    if (MouseEvent.Mod == (EModifier.Shift | EModifier.Ctrl))
-                        ResizeElement(_MouseDX, _MouseDY);
+                if (mouseEvent.Mod == (EModifier.Shift | EModifier.Ctrl))
+                    _ResizeElement(_MouseDX, _MouseDY);
                 //}
             }
             else
-                ProcessMouseMove(MouseEvent.X, MouseEvent.Y);
+                ProcessMouseMove(mouseEvent.X, mouseEvent.Y);
 
             return true;
         }
 
         public abstract bool UpdateGame();
 
-        public virtual void ApplyVolume()
-        {
-        }
+        public virtual void ApplyVolume() {}
 
         public virtual void OnShow()
         {
-            ResumeBG();
+            _ResumeBG();
         }
 
         public virtual void OnShowFinish()
         {
-            ResumeBG();
+            _ResumeBG();
             _Active = true;
         }
 
         public virtual void OnClose()
         {
-            PauseBG();
+            _PauseBG();
             _Active = false;
         }
         #endregion MenuHandler
 
-        protected void ResumeBG()
+        protected void _ResumeBG()
         {
             foreach (CBackground bg in _Backgrounds)
-            {
                 bg.Resume();
-            }
         }
 
-        protected void PauseBG()
+        protected void _PauseBG()
         {
             foreach (CBackground bg in _Backgrounds)
-            {
                 bg.Pause();
-            }
         }
 
         #region Drawing
         public virtual bool Draw()
         {
-            DrawBG();
-            DrawFG();
+            _DrawBG();
+            _DrawFG();
             return true;
         }
-        
-        public void DrawBG()
+
+        protected void _DrawBG()
         {
             foreach (CBackground bg in _Backgrounds)
-            {
                 bg.Draw();
-            }
         }
 
-        public void DrawFG()
+        protected void _DrawFG()
         {
             if (_Interactions.Count <= 0)
                 return;
-            
-            List<ZSort> items = new List<ZSort>();
+
+            List<SZSort> items = new List<SZSort>();
 
             for (int i = 0; i < _Interactions.Count; i++)
             {
-                if (_IsVisible(i) && (
-                    _Interactions[i].Type == EType.TButton ||
-                    _Interactions[i].Type == EType.TSelectSlide ||
-                    _Interactions[i].Type == EType.TStatic ||
-                    _Interactions[i].Type == EType.TNameSelection ||
-                    _Interactions[i].Type == EType.TText ||
-                    _Interactions[i].Type == EType.TSongMenu ||
-                    _Interactions[i].Type == EType.TEqualizer ||
-                    _Interactions[i].Type == EType.TPlaylist ||
-                    _Interactions[i].Type == EType.TParticleEffect))
-                {
-                    ZSort zs = new ZSort();
-                    zs.ID = i;
-                    zs.z = _GetZValue(i);
-                    items.Add(zs);
-                }
+                if (!_IsVisible(i) ||
+                    (_Interactions[i].Type != EType.Button && _Interactions[i].Type != EType.SelectSlide && _Interactions[i].Type != EType.Static &&
+                     _Interactions[i].Type != EType.NameSelection && _Interactions[i].Type != EType.Text && _Interactions[i].Type != EType.SongMenu &&
+                     _Interactions[i].Type != EType.Equalizer && _Interactions[i].Type != EType.Playlist && _Interactions[i].Type != EType.ParticleEffect))
+                    continue;
+                SZSort zs = new SZSort {ID = i, Z = _GetZValue(i)};
+                items.Add(zs);
             }
 
             if (items.Count <= 0)
                 return;
 
-                
-            items.Sort(delegate(ZSort s1, ZSort s2) { return (s2.z.CompareTo(s1.z)); });
+
+            items.Sort((s1, s2) => s2.Z.CompareTo(s1.Z));
 
             for (int i = 0; i < items.Count; i++)
-            {
                 _DrawInteraction(items[i].ID);
-            }
-            
         }
         #endregion Drawing
 
         #region Elements
-        public int AddBackground(CBackground bg)
+        // ReSharper disable MemberCanBePrivate.Global
+        protected void _AddBackground(CBackground bg, String key = null)
         {
-            _Backgrounds.Add(bg);
-            _AddInteraction(_Backgrounds.Count - 1, EType.TBackground);
-            return _Backgrounds.Count - 1;
+            _AddInteraction(_Backgrounds.Add(bg, key), EType.Background);
         }
 
-        public int AddButton(CButton button)
+        protected void _AddButton(CButton button, String key = null)
         {
-            _Buttons.Add(button);
-            _AddInteraction(_Buttons.Count - 1, EType.TButton);
-            return _Buttons.Count - 1;
+            _AddInteraction(_Buttons.Add(button, key), EType.Button);
         }
 
-        public int AddSelectSlide(CSelectSlide slide)
+        protected void _AddSelectSlide(CSelectSlide slide, String key = null)
         {
-            _SelectSlides.Add(slide);
-            _AddInteraction(_SelectSlides.Count - 1, EType.TSelectSlide);
-            return _SelectSlides.Count - 1;
+            _AddInteraction(_SelectSlides.Add(slide, key), EType.SelectSlide);
         }
 
-        public int AddStatic(CStatic stat)
+        protected void _AddStatic(CStatic stat, String key = null)
         {
-            _Statics.Add(stat);
-            _AddInteraction(_Statics.Count - 1, EType.TStatic);
-            return _Statics.Count - 1;
+            _AddInteraction(_Statics.Add(stat, key), EType.Static);
         }
 
-        public int AddText(CText text)
+        protected void _AddText(CText text, String key = null)
         {
-            _Texts.Add(text);
-            _AddInteraction(_Texts.Count - 1, EType.TText);
-            return _Texts.Count - 1;
+            _AddInteraction(_Texts.Add(text, key), EType.Text);
         }
 
-        public int AddSongMenu(CSongMenu songmenu)
+        protected void _AddSongMenu(CSongMenu songmenu, String key = null)
         {
-            _SongMenus.Add(songmenu);
-            _AddInteraction(_SongMenus.Count - 1, EType.TSongMenu);
-            return _SongMenus.Count - 1;
+            _AddInteraction(_SongMenus.Add(songmenu, key), EType.SongMenu);
         }
 
-        public int AddLyric(CLyric lyric)
+        protected void _AddLyric(CLyric lyric, String key = null)
         {
-            _Lyrics.Add(lyric);
-            _AddInteraction(_Lyrics.Count - 1, EType.TLyric);
-            return _Lyrics.Count - 1;
+            _AddInteraction(_Lyrics.Add(lyric, key), EType.Lyric);
         }
 
-        public int AddSingNote(CSingNotes sn)
+        protected void _AddSingNote(CSingNotes sn, String key = null)
         {
-            _SingNotes.Add(sn);
-            _AddInteraction(_SingNotes.Count - 1, EType.TSingNote);
-            return _SingNotes.Count - 1;
+            _AddInteraction(_SingNotes.Add(sn, key), EType.SingNote);
         }
 
-        public int AddNameSelection(CNameSelection ns)
+        protected void _AddNameSelection(CNameSelection ns, String key = null)
         {
-            _NameSelections.Add(ns);
-            _AddInteraction(_NameSelections.Count - 1, EType.TNameSelection);
-            return _NameSelections.Count - 1;
+            _AddInteraction(_NameSelections.Add(ns, key), EType.NameSelection);
         }
 
-        public int AddEqualizer(CEqualizer eq)
+        protected void _AddEqualizer(CEqualizer eq, String key = null)
         {
-            _Equalizers.Add(eq);
-            _AddInteraction(_Equalizers.Count - 1, EType.TEqualizer);
-            return _Equalizers.Count - 1;
+            _AddInteraction(_Equalizers.Add(eq, key), EType.Equalizer);
         }
 
-        public int AddPlaylist(CPlaylist pls)
+        protected void _AddPlaylist(CPlaylist pls, String key = null)
         {
-            _Playlists.Add(pls);
-            _AddInteraction(_Playlists.Count - 1, EType.TPlaylist);
-            return _Playlists.Count - 1;
+            _AddInteraction(_Playlists.Add(pls, key), EType.Playlist);
         }
 
-        public int AddParticleEffect(CParticleEffect pe)
+        protected void _AddParticleEffect(CParticleEffect pe, String key = null)
         {
-            _ParticleEffects.Add(pe);
-            _AddInteraction(_ParticleEffects.Count - 1, EType.TParticleEffect);
-            return _ParticleEffects.Count - 1;
+            _AddInteraction(_ParticleEffects.Add(pe, key), EType.ParticleEffect);
         }
 
-        public int AddScreenSetting(CScreenSetting se)
+        protected void _AddScreenSetting(CScreenSetting se, String key = null)
         {
-            _ScreenSettings.Add(se);
-            return _ScreenSettings.Count - 1;
+            _ScreenSettings.Add(se, key);
         }
+
+        // ReSharper restore MemberCanBePrivate.Global
         #endregion Elements
 
         #region InteractionHandling
-        public void CheckInteraction()
+        protected void _CheckInteraction()
         {
             if (!_IsEnabled(_Selection) || !_IsVisible(_Selection))
                 PrevInteraction();
@@ -1473,7 +874,7 @@ namespace Vocaluxe.Menu
         public void NextInteraction()
         {
             if (_Interactions.Count > 0)
-                _NextInteraction();            
+                _NextInteraction();
         }
 
         public void PrevInteraction()
@@ -1483,9 +884,9 @@ namespace Vocaluxe.Menu
         }
 
         /// <summary>
-        /// Selects the next element in a menu interaction.
+        ///     Selects the next element in a menu Interaction.
         /// </summary>
-        /// <returns>True if the next element is selected. False if either there is no next element or the interaction does not provide such a method.</returns>
+        /// <returns>True if the next element is selected. False if either there is no next element or the Interaction does not provide such a method.</returns>
         public bool NextElement()
         {
             if (_Interactions.Count > 0)
@@ -1495,9 +896,9 @@ namespace Vocaluxe.Menu
         }
 
         /// <summary>
-        /// Selects the previous element in a menu interaction.
+        ///     Selects the previous element in a menu Interaction.
         /// </summary>
-        /// <returns>True if the previous element is selected. False if either there is no next element or the interaction does not provide such a method.</returns>
+        /// <returns>True if the previous element is selected. False if either there is no next element or the Interaction does not provide such a method.</returns>
         public bool PrevElement()
         {
             if (_Interactions.Count > 0)
@@ -1506,30 +907,27 @@ namespace Vocaluxe.Menu
             return false;
         }
 
-        public bool SetInteractionToButton(CButton button)
+        protected void _SetInteractionToButton(CButton button)
         {
             for (int i = 0; i < _Interactions.Count; i++)
             {
-                if (_Interactions[i].Type == EType.TButton)
-                {
-                    if (_Buttons[_Interactions[i].Num] == button)
-                    {
-                        _UnsetSelected();
-                        _UnsetHighlighted(_Selection);
-                        _Selection = i;
-                        _SetSelected();
-                        return true;
-                    }
-                }
+                if (_Interactions[i].Type != EType.Button)
+                    continue;
+                if (_Buttons[_Interactions[i].Num] != button)
+                    continue;
+                _UnsetSelected();
+                _UnsetHighlighted(_Selection);
+                _Selection = i;
+                _SetSelected();
+                return;
             }
-            return false;
         }
 
-        public bool SetInteractionToSelectSlide(CSelectSlide slide)
+        protected void _SetInteractionToSelectSlide(CSelectSlide slide)
         {
             for (int i = 0; i < _Interactions.Count; i++)
             {
-                if (_Interactions[i].Type == EType.TSelectSlide)
+                if (_Interactions[i].Type == EType.SelectSlide)
                 {
                     if (_SelectSlides[_Interactions[i].Num] == slide)
                     {
@@ -1537,11 +935,10 @@ namespace Vocaluxe.Menu
                         _UnsetHighlighted(_Selection);
                         _Selection = i;
                         _SetSelected();
-                        return true;
+                        return;
                     }
                 }
             }
-            return false;
         }
 
         public void ProcessMouseClick(int x, int y)
@@ -1549,116 +946,68 @@ namespace Vocaluxe.Menu
             if (_Selection >= _Interactions.Count || _Selection < 0)
                 return;
 
-            if (_Interactions[_Selection].Type == EType.TSelectSlide)
+            if (_Interactions[_Selection].Type == EType.SelectSlide)
             {
                 if (_SelectSlides[_Interactions[_Selection].Num].Visible)
-                {
                     _SelectSlides[_Interactions[_Selection].Num].ProcessMouseLBClick(x, y);
-                }
             }
         }
 
         public void ProcessMouseMove(int x, int y)
         {
-            SelectByMouse(x, y);
+            _SelectByMouse(x, y);
 
             if (_Selection >= _Interactions.Count || _Selection < 0)
                 return;
 
-            if (_Interactions[_Selection].Type == EType.TSelectSlide)
+            if (_Interactions[_Selection].Type == EType.SelectSlide)
             {
                 if (_SelectSlides[_Interactions[_Selection].Num].Visible)
-                {
                     _SelectSlides[_Interactions[_Selection].Num].ProcessMouseMove(x, y);
-                }
             }
         }
 
-        public void SelectByMouse(int x, int y)
+        private void _SelectByMouse(int x, int y)
         {
             float z = CBase.Settings.GetZFar();
             for (int i = 0; i < _Interactions.Count; i++)
             {
-                if ((CBase.Settings.GetGameState() == EGameState.EditTheme) || (!_Interactions[i].ThemeEditorOnly && _IsVisible(i) && _IsEnabled(i)))
-                {
-                    if (_IsMouseOver(x, y, _Interactions[i]))
-                    {
-                        if (_GetZValue(_Interactions[i]) <= z)
-                        {
-                            z = _GetZValue(_Interactions[i]);
-                            _UnsetSelected();
-                            _Selection = i;
-                            _SetSelected();
-                        }
-                    }
-                }
+                if ((CBase.Settings.GetGameState() != EGameState.EditTheme) && (_Interactions[i].ThemeEditorOnly || !_IsVisible(i) || !_IsEnabled(i)))
+                    continue;
+                if (!_IsMouseOver(x, y, _Interactions[i]))
+                    continue;
+                if (_GetZValue(_Interactions[i]) > z)
+                    continue;
+                z = _GetZValue(_Interactions[i]);
+                _UnsetSelected();
+                _Selection = i;
+                _SetSelected();
             }
         }
 
-        public bool IsMouseOver(MouseEvent MouseEvent)
+        protected bool _IsMouseOver(SMouseEvent mouseEvent)
         {
-            return IsMouseOver(MouseEvent.X, MouseEvent.Y);
+            return _IsMouseOver(mouseEvent.X, mouseEvent.Y);
         }
 
-        public bool IsMouseOver(int x, int y)
+        private bool _IsMouseOver(int x, int y)
         {
             if (_Selection >= _Interactions.Count || _Selection < 0)
                 return false;
 
-            if (_Interactions.Count > 0)
-                return _IsMouseOver(x, y, _Interactions[_Selection]);
-            else
-                return false;
+            return _Interactions.Count > 0 && _IsMouseOver(x, y, _Interactions[_Selection]);
         }
 
         private bool _IsMouseOver(int x, int y, CInteraction interact)
         {
-            switch (interact.Type)
+            bool result = CHelper.IsInBounds(_GetRect(interact), x, y);
+            if (result)
+                return true;
+            if (interact.Type == EType.SelectSlide)
             {
-                case EType.TButton:
-                    if (CHelper.IsInBounds(_Buttons[interact.Num].Rect, x, y))
-                        return true;
-                    break;
-                case EType.TSelectSlide:
-                    if (CHelper.IsInBounds(_SelectSlides[interact.Num].Rect, x, y) ||
-                        CHelper.IsInBounds(_SelectSlides[interact.Num].RectArrowLeft, x, y) ||
-                        CHelper.IsInBounds(_SelectSlides[interact.Num].RectArrowRight, x, y))
-                        return true;
-                    break;
-                case EType.TStatic:
-                    if (CHelper.IsInBounds(_Statics[interact.Num].Rect, x, y))
-                        return true;
-                    break;
-                case EType.TText:
-                    RectangleF bounds = CBase.Drawing.GetTextBounds(_Texts[interact.Num]);
-                    if (CHelper.IsInBounds(new SRectF(_Texts[interact.Num].X, _Texts[interact.Num].Y, bounds.Width, bounds.Height, _Texts[interact.Num].Z), x, y))
-                        return true;
-                    break;
-                case EType.TSongMenu:
-                    if (CHelper.IsInBounds(_SongMenus[interact.Num].Rect, x, y))
-                        return true;
-                    break;
-                case EType.TLyric:
-                    if (CHelper.IsInBounds(_Lyrics[interact.Num].Rect, x, y))
-                        return true;
-                    break;
-                case EType.TNameSelection:
-                    if (CHelper.IsInBounds(_NameSelections[interact.Num].Rect, x, y))
-                        return true;
-                    break;
-                case EType.TEqualizer:
-                    if (CHelper.IsInBounds(_Equalizers[interact.Num].Rect, x, y))
-                        return true;
-                    break;
-                case EType.TPlaylist:
-                    if (CHelper.IsInBounds(_Playlists[interact.Num].Rect, x, y))
-                        return true;
-                    break;
-                case EType.TParticleEffect:
-                    if (CHelper.IsInBounds(_ParticleEffects[interact.Num].Rect, x, y))
-                        return true;
-                    break;
-            } 
+                return CHelper.IsInBounds(_SelectSlides[interact.Num].RectArrowLeft, x, y) ||
+                       CHelper.IsInBounds(_SelectSlides[interact.Num].RectArrowRight, x, y);
+            }
             return false;
         }
 
@@ -1666,25 +1015,25 @@ namespace Vocaluxe.Menu
         {
             switch (interact.Type)
             {
-                case EType.TButton:
+                case EType.Button:
                     return _Buttons[interact.Num].Rect.Z;
-                case EType.TSelectSlide:
+                case EType.SelectSlide:
                     return _SelectSlides[interact.Num].Rect.Z;
-                case EType.TStatic:
+                case EType.Static:
                     return _Statics[interact.Num].Rect.Z;
-                case EType.TSongMenu:
+                case EType.SongMenu:
                     return _SongMenus[interact.Num].Rect.Z;
-                case EType.TText:
+                case EType.Text:
                     return _Texts[interact.Num].Z;
-                case EType.TLyric:
+                case EType.Lyric:
                     return _Lyrics[interact.Num].Rect.Z;
-                case EType.TNameSelection:
+                case EType.NameSelection:
                     return _NameSelections[interact.Num].Rect.Z;
-                case EType.TEqualizer:
+                case EType.Equalizer:
                     return _Equalizers[interact.Num].Rect.Z;
-                case EType.TPlaylist:
+                case EType.Playlist:
                     return _Playlists[interact.Num].Rect.Z;
-                case EType.TParticleEffect:
+                case EType.ParticleEffect:
                     return _ParticleEffects[interact.Num].Rect.Z;
             }
             return CBase.Settings.GetZFar();
@@ -1692,40 +1041,7 @@ namespace Vocaluxe.Menu
 
         private float _GetZValue(int interaction)
         {
-            switch (_Interactions[interaction].Type)
-            {
-                case EType.TButton:
-                    return _Buttons[_Interactions[interaction].Num].Rect.Z;
-
-                case EType.TSelectSlide:
-                    return _SelectSlides[_Interactions[interaction].Num].Rect.Z;
-
-                case EType.TStatic:
-                    return _Statics[_Interactions[interaction].Num].Rect.Z;
-
-                case EType.TText:
-                    return _Texts[_Interactions[interaction].Num].Z;
-
-                case EType.TSongMenu:
-                    return _SongMenus[_Interactions[interaction].Num].Rect.Z;
-
-                case EType.TLyric:
-                    return _Lyrics[_Interactions[interaction].Num].Rect.Z;
-
-                case EType.TNameSelection:
-                    return _NameSelections[_Interactions[interaction].Num].Rect.Z;
-
-                case EType.TEqualizer:
-                    return _Equalizers[_Interactions[interaction].Num].Rect.Z;
-
-                case EType.TPlaylist:
-                    return _Playlists[_Interactions[interaction].Num].Rect.Z;
-
-                case EType.TParticleEffect:
-                    return _ParticleEffects[_Interactions[interaction].Num].Rect.Z;
-            }
-
-            return CBase.Settings.GetZFar();
+            return _GetZValue(_Interactions[interaction]);
         }
 
         private void _NextInteraction()
@@ -1783,39 +1099,34 @@ namespace Vocaluxe.Menu
         }
 
         /// <summary>
-        /// Selects the next best interaction in a menu.
+        ///     Selects the next best interaction in a menu.
         /// </summary>
-        /// <param name="Key"></param>
+        /// <param name="key"></param>
         /// <returns></returns>
-        private bool _NextInteraction(KeyEvent Key)
+        private bool _NextInteraction(SKeyEvent key)
         {
-            KeyEvent[] Directions = new KeyEvent[4];
-            float[] Distances = new float[4];
+            SKeyEvent[] directions = new SKeyEvent[4];
+            float[] distances = new float[4];
             int[] stages = new int[4];
             int[] elements = new int[4];
 
             for (int i = 0; i < 4; i++)
-            {
-                Directions[i] = new KeyEvent();
-            }
+                directions[i] = new SKeyEvent();
 
-            Directions[0].Key = Keys.Up;
-            Directions[1].Key = Keys.Right;
-            Directions[2].Key = Keys.Down;
-            Directions[3].Key = Keys.Left;
+            directions[0].Key = Keys.Up;
+            directions[1].Key = Keys.Right;
+            directions[2].Key = Keys.Down;
+            directions[3].Key = Keys.Left;
 
             for (int i = 0; i < 4; i++)
-            {
-                elements[i] = _GetNextElement(Directions[i], out Distances[i], out stages[i]);
-            }
+                elements[i] = _GetNextElement(directions[i], out distances[i], out stages[i]);
 
             int element = _Selection;
             int stage = int.MaxValue;
-            float distance = float.MaxValue;
             int direction = -1;
 
             int mute = -1;
-            switch (Key.Key)
+            switch (key.Key)
             {
                 case Keys.Up:
                     mute = 2;
@@ -1833,11 +1144,10 @@ namespace Vocaluxe.Menu
 
             for (int i = 0; i < 4; i++)
             {
-                if (i != mute && elements[i] != _Selection && (stages[i] <= stage && Directions[i].Key == Key.Key))
+                if (i != mute && elements[i] != _Selection && (stages[i] <= stage && directions[i].Key == key.Key))
                 {
                     stage = stages[i];
                     element = elements[i];
-                    distance = Distances[i];
                     direction = i;
                 }
             }
@@ -1845,7 +1155,7 @@ namespace Vocaluxe.Menu
             if (direction != -1)
             {
                 // select the new element
-                if (Directions[direction].Key == Key.Key)
+                if (directions[direction].Key == key.Key)
                 {
                     _UnsetHighlighted(_Selection);
                     _UnsetSelected();
@@ -1860,24 +1170,24 @@ namespace Vocaluxe.Menu
             return false;
         }
 
-        private int _GetNextElement(KeyEvent Key, out float Distance, out int Stage)
+        private int _GetNextElement(SKeyEvent key, out float distance, out int stage)
         {
-            Distance = float.MaxValue;
+            distance = float.MaxValue;
             int min = _Selection;
             SRectF actualRect = _GetRect(_Selection);
-            Stage = int.MaxValue;
+            stage = int.MaxValue;
 
             for (int i = 0; i < _Interactions.Count; i++)
             {
                 if (i != _Selection && !_Interactions[i].ThemeEditorOnly && _IsVisible(i) && _IsEnabled(i))
                 {
                     SRectF targetRect = _GetRect(i);
-                    float dist = _GetDistanceDirect(Key, actualRect, targetRect);
-                    if (dist >= 0f && dist < Distance)
+                    float dist = _GetDistanceDirect(key, actualRect, targetRect);
+                    if (dist >= 0f && dist < distance)
                     {
-                        Distance = dist;
+                        distance = dist;
                         min = i;
-                        Stage = 10;
+                        stage = 10;
                     }
                 }
             }
@@ -1889,12 +1199,12 @@ namespace Vocaluxe.Menu
                     if (i != _Selection && !_Interactions[i].ThemeEditorOnly && _IsVisible(i) && _IsEnabled(i))
                     {
                         SRectF targetRect = _GetRect(i);
-                        float dist = _GetDistance180(Key, actualRect, targetRect);
-                        if (dist >= 0f && dist < Distance)
+                        float dist = _GetDistance180(key, actualRect, targetRect);
+                        if (dist >= 0f && dist < distance)
                         {
-                            Distance = dist;
+                            distance = dist;
                             min = i;
-                            Stage = 20;
+                            stage = 20;
                         }
                     }
                 }
@@ -1902,7 +1212,7 @@ namespace Vocaluxe.Menu
 
             if (min == _Selection)
             {
-                switch (Key.Key)
+                switch (key.Key)
                 {
                     case Keys.Up:
                         actualRect = new SRectF(actualRect.X, CBase.Settings.GetRenderH(), 1, 1, actualRect.Z);
@@ -1916,8 +1226,6 @@ namespace Vocaluxe.Menu
                     case Keys.Right:
                         actualRect = new SRectF(0, actualRect.Y, 1, 1, actualRect.Z);
                         break;
-                    default:
-                        break;
                 }
 
                 for (int i = 0; i < _Interactions.Count; i++)
@@ -1925,12 +1233,12 @@ namespace Vocaluxe.Menu
                     if (i != _Selection && !_Interactions[i].ThemeEditorOnly && _IsVisible(i) && _IsEnabled(i))
                     {
                         SRectF targetRect = _GetRect(i);
-                        float dist = _GetDistance180(Key, actualRect, targetRect);
-                        if (dist >= 0f && dist < Distance)
+                        float dist = _GetDistance180(key, actualRect, targetRect);
+                        if (dist >= 0f && dist < distance)
                         {
-                            Distance = dist;
+                            distance = dist;
                             min = i;
-                            Stage = 30;
+                            stage = 30;
                         }
                     }
                 }
@@ -1938,7 +1246,7 @@ namespace Vocaluxe.Menu
             return min;
         }
 
-        private float _GetDistanceDirect(KeyEvent Key, SRectF actualRect, SRectF targetRect)
+        private float _GetDistanceDirect(SKeyEvent key, SRectF actualRect, SRectF targetRect)
         {
             PointF source = new PointF(actualRect.X + actualRect.W / 2f, actualRect.Y + actualRect.H / 2f);
             PointF dest = new PointF(targetRect.X + targetRect.W / 2f, targetRect.Y + targetRect.H / 2f);
@@ -1946,7 +1254,7 @@ namespace Vocaluxe.Menu
             PointF vector = new PointF(dest.X - source.X, dest.Y - source.Y);
             float distance = (float)Math.Sqrt(vector.X * vector.X + vector.Y * vector.Y);
             bool inDirection = false;
-            switch (Key.Key)
+            switch (key.Key)
             {
                 case Keys.Up:
                     if (vector.Y < 0f && (targetRect.X + targetRect.W > actualRect.X && actualRect.X + actualRect.W > targetRect.X))
@@ -1967,17 +1275,11 @@ namespace Vocaluxe.Menu
                     if (vector.X > 0f && (targetRect.Y + targetRect.H > actualRect.Y && actualRect.Y + actualRect.H > targetRect.Y))
                         inDirection = true;
                     break;
-
-                default:
-                    break;
             }
-            if (!inDirection)
-                return float.MaxValue;
-            else
-                return distance;
+            return !inDirection ? float.MaxValue : distance;
         }
 
-        private float _GetDistance180(KeyEvent Key, SRectF actualRect, SRectF targetRect)
+        private float _GetDistance180(SKeyEvent key, SRectF actualRect, SRectF targetRect)
         {
             PointF source = new PointF(actualRect.X + actualRect.W / 2f, actualRect.Y + actualRect.H / 2f);
             PointF dest = new PointF(targetRect.X + targetRect.W / 2f, targetRect.Y + targetRect.H / 2f);
@@ -1985,7 +1287,7 @@ namespace Vocaluxe.Menu
             PointF vector = new PointF(dest.X - source.X, dest.Y - source.Y);
             float distance = (float)Math.Sqrt(vector.X * vector.X + vector.Y * vector.Y);
             bool inDirection = false;
-            switch (Key.Key)
+            switch (key.Key)
             {
                 case Keys.Up:
                     if (vector.Y < 0f)
@@ -2006,37 +1308,31 @@ namespace Vocaluxe.Menu
                     if (vector.X > 0f)
                         inDirection = true;
                     break;
-
-                default:
-                    break;
             }
-            if (!inDirection)
-                return float.MaxValue;
-            else
-                return distance;
+            return !inDirection ? float.MaxValue : distance;
         }
 
         /// <summary>
-        /// Selects the next element in a menu interaction.
+        ///     Selects the next element in a menu interaction.
         /// </summary>
         /// <returns>True if the next element is selected. False if either there is no next element or the interaction does not provide such a method.</returns>
         private bool _NextElement()
         {
-            if (_Interactions[_Selection].Type == EType.TSelectSlide)
+            if (_Interactions[_Selection].Type == EType.SelectSlide)
                 return _SelectSlides[_Interactions[_Selection].Num].NextValue();
 
             return false;
         }
 
         /// <summary>
-        /// Selects the previous element in a menu interaction.
+        ///     Selects the previous element in a menu interaction.
         /// </summary>
         /// <returns>
-        /// True if the previous element is selected. False if either there is no previous element or the interaction does not provide such a method.
+        ///     True if the previous element is selected. False if either there is no previous element or the interaction does not provide such a method.
         /// </returns>
         private bool _PrevElement()
         {
-            if (_Interactions[_Selection].Type == EType.TSelectSlide)
+            if (_Interactions[_Selection].Type == EType.SelectSlide)
                 return _SelectSlides[_Interactions[_Selection].Num].PrevValue();
 
             return false;
@@ -2046,34 +1342,34 @@ namespace Vocaluxe.Menu
         {
             switch (_Interactions[_Selection].Type)
             {
-                case EType.TButton:
+                case EType.Button:
                     _Buttons[_Interactions[_Selection].Num].Selected = true;
                     break;
-                case EType.TSelectSlide:
+                case EType.SelectSlide:
                     _SelectSlides[_Interactions[_Selection].Num].Selected = true;
                     break;
-                case EType.TStatic:
+                case EType.Static:
                     _Statics[_Interactions[_Selection].Num].Selected = true;
                     break;
-                case EType.TText:
+                case EType.Text:
                     _Texts[_Interactions[_Selection].Num].Selected = true;
                     break;
-                case EType.TSongMenu:
+                case EType.SongMenu:
                     _SongMenus[_Interactions[_Selection].Num].Selected = true;
                     break;
-                case EType.TLyric:
+                case EType.Lyric:
                     _Lyrics[_Interactions[_Selection].Num].Selected = true;
                     break;
-                case EType.TNameSelection:
+                case EType.NameSelection:
                     _NameSelections[_Interactions[_Selection].Num].Selected = true;
                     break;
-                case EType.TEqualizer:
+                case EType.Equalizer:
                     _Equalizers[_Interactions[_Selection].Num].Selected = true;
                     break;
-                case EType.TPlaylist:
+                case EType.Playlist:
                     _Playlists[_Interactions[_Selection].Num].Selected = true;
                     break;
-                case EType.TParticleEffect:
+                case EType.ParticleEffect:
                     _ParticleEffects[_Interactions[_Selection].Num].Selected = true;
                     break;
             }
@@ -2083,34 +1379,34 @@ namespace Vocaluxe.Menu
         {
             switch (_Interactions[_Selection].Type)
             {
-                case EType.TButton:
+                case EType.Button:
                     _Buttons[_Interactions[_Selection].Num].Selected = false;
                     break;
-                case EType.TSelectSlide:
+                case EType.SelectSlide:
                     _SelectSlides[_Interactions[_Selection].Num].Selected = false;
                     break;
-                case EType.TStatic:
+                case EType.Static:
                     _Statics[_Interactions[_Selection].Num].Selected = false;
                     break;
-                case EType.TText:
+                case EType.Text:
                     _Texts[_Interactions[_Selection].Num].Selected = false;
                     break;
-                case EType.TSongMenu:
+                case EType.SongMenu:
                     _SongMenus[_Interactions[_Selection].Num].Selected = false;
                     break;
-                case EType.TLyric:
+                case EType.Lyric:
                     _Lyrics[_Interactions[_Selection].Num].Selected = false;
                     break;
-                case EType.TNameSelection:
+                case EType.NameSelection:
                     _NameSelections[_Interactions[_Selection].Num].Selected = false;
                     break;
-                case EType.TEqualizer:
+                case EType.Equalizer:
                     _Equalizers[_Interactions[_Selection].Num].Selected = false;
                     break;
-                case EType.TPlaylist:
+                case EType.Playlist:
                     _Playlists[_Interactions[_Selection].Num].Selected = false;
                     break;
-                case EType.TParticleEffect:
+                case EType.ParticleEffect:
                     _ParticleEffects[_Interactions[_Selection].Num].Selected = false;
                     break;
             }
@@ -2123,28 +1419,28 @@ namespace Vocaluxe.Menu
 
             switch (_Interactions[selection].Type)
             {
-                case EType.TButton:
+                case EType.Button:
                     //_Buttons[_Interactions[selection].Num].Selected = true;
                     break;
-                case EType.TSelectSlide:
+                case EType.SelectSlide:
                     _SelectSlides[_Interactions[selection].Num].Highlighted = true;
                     break;
-                case EType.TStatic:
+                case EType.Static:
                     //_Statics[_Interactions[selection].Num].Selected = true;
                     break;
-                case EType.TText:
+                case EType.Text:
                     //_Texts[_Interactions[selection].Num].Selected = true;
                     break;
-                case EType.TSongMenu:
+                case EType.SongMenu:
                     //_SongMenus[_Interactions[selection].Num].Selected = true;
                     break;
-                case EType.TLyric:
+                case EType.Lyric:
                     //_Lyrics[_Interactions[selection].Num].Selected = true;
                     break;
-                case EType.TNameSelection:
+                case EType.NameSelection:
                     //_NameSelections[_Interactions[selection].Num].Selected = true;
                     break;
-                case EType.TPlaylist:
+                case EType.Playlist:
                     //_Playlists[_Interactions[_Selection].Num].Selected = true;
                     break;
             }
@@ -2157,42 +1453,41 @@ namespace Vocaluxe.Menu
 
             switch (_Interactions[selection].Type)
             {
-                case EType.TButton:
+                case EType.Button:
                     //_Buttons[_Interactions[selection].Num].Selected = false;
                     break;
-                case EType.TSelectSlide:
+                case EType.SelectSlide:
                     _SelectSlides[_Interactions[selection].Num].Highlighted = false;
                     break;
-                case EType.TStatic:
+                case EType.Static:
                     //_Statics[_Interactions[selection].Num].Selected = false;
                     break;
-                case EType.TText:
+                case EType.Text:
                     //_Texts[_Interactions[selection].Num].Selected = false;
                     break;
-                case EType.TSongMenu:
+                case EType.SongMenu:
                     //_SongMenus[_Interactions[selection].Num].Selected = false;
                     break;
-                case EType.TLyric:
+                case EType.Lyric:
                     //_Lyrics[_Interactions[selection].Num].Selected = false;
                     break;
-                case EType.TNameSelection:
+                case EType.NameSelection:
                     //_NameSelections[_Interactions[selection].Num].Selected = false;
                     break;
-                case EType.TPlaylist:
+                case EType.Playlist:
                     //_Playlists[_Interactions[_Selection].Num].Selected = true;
                     break;
             }
         }
 
+        // ReSharper disable UnusedMember.Local
         private void _ToggleHighlighted()
         {
             if (_Selection >= _Interactions.Count || _Selection < 0)
                 return;
 
-            if (_Interactions[_Selection].Type == EType.TSelectSlide)
-            {
+            if (_Interactions[_Selection].Type == EType.SelectSlide)
                 _SelectSlides[_Interactions[_Selection].Num].Highlighted = !_SelectSlides[_Interactions[_Selection].Num].Highlighted;
-            }
         }
 
         private bool _IsHighlighted()
@@ -2200,11 +1495,10 @@ namespace Vocaluxe.Menu
             if (_Selection >= _Interactions.Count || _Selection < 0)
                 return false;
 
-            if (_Interactions[_Selection].Type == EType.TSelectSlide)
-                return _SelectSlides[_Interactions[_Selection].Num].Highlighted;
-
-            return false;
+            return _Interactions[_Selection].Type == EType.SelectSlide && _SelectSlides[_Interactions[_Selection].Num].Highlighted;
         }
+
+        // ReSharper restore UnusedMember.Local
 
         private bool _IsVisible(int interaction)
         {
@@ -2213,34 +1507,34 @@ namespace Vocaluxe.Menu
 
             switch (_Interactions[interaction].Type)
             {
-                case EType.TButton:
+                case EType.Button:
                     return _Buttons[_Interactions[interaction].Num].Visible;
 
-                case EType.TSelectSlide:
+                case EType.SelectSlide:
                     return _SelectSlides[_Interactions[interaction].Num].Visible;
 
-                case EType.TStatic:
+                case EType.Static:
                     return _Statics[_Interactions[interaction].Num].Visible;
 
-                case EType.TText:
+                case EType.Text:
                     return _Texts[_Interactions[interaction].Num].Visible;
 
-                case EType.TSongMenu:
+                case EType.SongMenu:
                     return _SongMenus[_Interactions[interaction].Num].Visible;
 
-                case EType.TLyric:
+                case EType.Lyric:
                     return _Lyrics[_Interactions[interaction].Num].Visible;
 
-                case EType.TNameSelection:
+                case EType.NameSelection:
                     return _NameSelections[_Interactions[interaction].Num].Visible;
 
-                case EType.TEqualizer:
+                case EType.Equalizer:
                     return _Equalizers[_Interactions[interaction].Num].Visible;
 
-                case EType.TPlaylist:
+                case EType.Playlist:
                     return _Playlists[_Interactions[interaction].Num].Visible;
 
-                case EType.TParticleEffect:
+                case EType.ParticleEffect:
                     return _ParticleEffects[_Interactions[interaction].Num].Visible;
             }
 
@@ -2254,77 +1548,82 @@ namespace Vocaluxe.Menu
 
             switch (_Interactions[interaction].Type)
             {
-                case EType.TButton:
+                case EType.Button:
                     return _Buttons[_Interactions[interaction].Num].Enabled;
 
-                case EType.TSelectSlide:
+                case EType.SelectSlide:
                     return _SelectSlides[_Interactions[interaction].Num].Visible;
 
-                case EType.TStatic:
+                case EType.Static:
                     return false; //_Statics[_Interactions[interaction].Num].Visible;
 
-                case EType.TText:
+                case EType.Text:
                     return false; //_Texts[_Interactions[interaction].Num].Visible;
 
-                case EType.TSongMenu:
+                case EType.SongMenu:
                     return _SongMenus[_Interactions[interaction].Num].Visible;
 
-                case EType.TLyric:
+                case EType.Lyric:
                     return false; //_Lyrics[_Interactions[interaction].Num].Visible;
 
-                case EType.TNameSelection:
+                case EType.NameSelection:
                     return _NameSelections[_Interactions[interaction].Num].Visible;
 
-                case EType.TEqualizer:
+                case EType.Equalizer:
                     return false; //_Equalizers[_Interactions[interaction].Num].Visible;
 
-                case EType.TPlaylist:
+                case EType.Playlist:
                     return _Playlists[_Interactions[interaction].Num].Visible;
 
-                case EType.TParticleEffect:
+                case EType.ParticleEffect:
                     return false; //_ParticleEffects[_Interactions[interaction].Num].Visible;
             }
 
             return false;
         }
 
-        private SRectF _GetRect(int interaction)
+        private SRectF _GetRect(CInteraction interaction)
         {
-            SRectF Result = new SRectF();
-            switch (_Interactions[interaction].Type)
+            SRectF result = new SRectF();
+            switch (interaction.Type)
             {
-                case EType.TButton:
-                    return _Buttons[_Interactions[interaction].Num].Rect;
+                case EType.Button:
+                    return _Buttons[interaction.Num].Rect;
 
-                case EType.TSelectSlide:
-                    return _SelectSlides[_Interactions[interaction].Num].Rect;
+                case EType.SelectSlide:
+                    return _SelectSlides[interaction.Num].Rect;
 
-                case EType.TStatic:
-                    return _Statics[_Interactions[interaction].Num].Rect;
+                case EType.Static:
+                    return _Statics[interaction.Num].Rect;
 
-                case EType.TText:
-                    return _Texts[_Interactions[interaction].Num].Bounds;
+                case EType.Text:
+                    return _Texts[interaction.Num].Rect;
 
-                case EType.TSongMenu:
-                    return _SongMenus[_Interactions[interaction].Num].Rect;
+                case EType.SongMenu:
+                    return _SongMenus[interaction.Num].Rect;
 
-                case EType.TLyric:
-                    return _Lyrics[_Interactions[interaction].Num].Rect;
+                case EType.Lyric:
+                    return _Lyrics[interaction.Num].Rect;
 
-                case EType.TNameSelection:
-                    return _NameSelections[_Interactions[interaction].Num].Rect;
+                case EType.NameSelection:
+                    return _NameSelections[interaction.Num].Rect;
 
-                case EType.TEqualizer:
-                    return _Equalizers[_Interactions[interaction].Num].Rect;
+                case EType.Equalizer:
+                    return _Equalizers[interaction.Num].Rect;
 
-                case EType.TPlaylist:
-                    return _Playlists[_Interactions[interaction].Num].Rect;
+                case EType.Playlist:
+                    return _Playlists[interaction.Num].Rect;
 
-                case EType.TParticleEffect:
-                    return _ParticleEffects[_Interactions[interaction].Num].Rect;
+                case EType.ParticleEffect:
+                    return _ParticleEffects[interaction.Num].Rect;
             }
 
-            return Result;
+            return result;
+        }
+
+        private SRectF _GetRect(int interaction)
+        {
+            return _GetRect(_Interactions[interaction]);
         }
 
         private void _AddInteraction(int num, EType type)
@@ -2340,31 +1639,31 @@ namespace Vocaluxe.Menu
         {
             switch (_Interactions[interaction].Type)
             {
-                case EType.TButton:
+                case EType.Button:
                     _Buttons[_Interactions[interaction].Num].Draw();
                     break;
 
-                case EType.TSelectSlide:
+                case EType.SelectSlide:
                     _SelectSlides[_Interactions[interaction].Num].Draw();
                     break;
 
-                case EType.TStatic:
+                case EType.Static:
                     _Statics[_Interactions[interaction].Num].Draw();
                     break;
 
-                case EType.TText:
+                case EType.Text:
                     _Texts[_Interactions[interaction].Num].Draw();
                     break;
 
-                case EType.TSongMenu:
+                case EType.SongMenu:
                     _SongMenus[_Interactions[interaction].Num].Draw();
                     break;
 
-                case EType.TNameSelection:
+                case EType.NameSelection:
                     _NameSelections[_Interactions[interaction].Num].Draw();
                     break;
 
-                case EType.TEqualizer:
+                case EType.Equalizer:
                     if (!_Equalizers[_Interactions[interaction].Num].ScreenHandles)
                     {
                         //TODO:
@@ -2373,189 +1672,183 @@ namespace Vocaluxe.Menu
                     }
                     break;
 
-                case EType.TPlaylist:
+                case EType.Playlist:
                     _Playlists[_Interactions[interaction].Num].Draw();
                     break;
 
-                case EType.TParticleEffect:
+                case EType.ParticleEffect:
                     _ParticleEffects[_Interactions[interaction].Num].Draw();
                     break;
-                
-                //TODO:
-                //case EType.TLyric:
-                //    _Lyrics[_Interactions[interaction].Num].Draw(0);
-                //    break;
+
+                    //TODO:
+                    //case EType.TLyric:
+                    //    _Lyrics[_Interactions[interaction].Num].Draw(0);
+                    //    break;
             }
         }
-
         #endregion InteractionHandling
 
         #region Theme Handling
-        private void MoveElement(int stepX, int stepY)
+        private void _MoveElement(int stepX, int stepY)
         {
             if (_Interactions.Count > 0)
             {
                 switch (_Interactions[_Selection].Type)
                 {
-                    case EType.TButton:
+                    case EType.Button:
                         _Buttons[_Interactions[_Selection].Num].MoveElement(stepX, stepY);
                         break;
 
-                    case EType.TSelectSlide:
+                    case EType.SelectSlide:
                         _SelectSlides[_Interactions[_Selection].Num].MoveElement(stepX, stepY);
                         break;
 
-                    case EType.TStatic:
+                    case EType.Static:
                         _Statics[_Interactions[_Selection].Num].MoveElement(stepX, stepY);
                         break;
 
-                    case EType.TText:
+                    case EType.Text:
                         _Texts[_Interactions[_Selection].Num].MoveElement(stepX, stepY);
                         break;
 
-                    case EType.TSongMenu:
+                    case EType.SongMenu:
                         _SongMenus[_Interactions[_Selection].Num].MoveElement(stepX, stepY);
                         break;
 
-                    case EType.TLyric:
+                    case EType.Lyric:
                         _Lyrics[_Interactions[_Selection].Num].MoveElement(stepX, stepY);
                         break;
 
-                    case EType.TNameSelection:
+                    case EType.NameSelection:
                         _NameSelections[_Interactions[_Selection].Num].MoveElement(stepX, stepY);
                         break;
 
-                    case EType.TEqualizer:
+                    case EType.Equalizer:
                         _Equalizers[_Interactions[_Selection].Num].MoveElement(stepX, stepY);
                         break;
 
-                    case EType.TPlaylist:
+                    case EType.Playlist:
                         _Playlists[_Interactions[_Selection].Num].MoveElement(stepX, stepY);
                         break;
 
-                    case EType.TParticleEffect:
+                    case EType.ParticleEffect:
                         _ParticleEffects[_Interactions[_Selection].Num].MoveElement(stepX, stepY);
                         break;
                 }
             }
-        }      
+        }
 
-        private void ResizeElement(int stepW, int stepH)
+        private void _ResizeElement(int stepW, int stepH)
         {
             if (_Interactions.Count > 0)
             {
                 switch (_Interactions[_Selection].Type)
                 {
-                    case EType.TButton:
+                    case EType.Button:
                         _Buttons[_Interactions[_Selection].Num].ResizeElement(stepW, stepH);
                         break;
 
-                    case EType.TSelectSlide:
+                    case EType.SelectSlide:
                         _SelectSlides[_Interactions[_Selection].Num].ResizeElement(stepW, stepH);
                         break;
 
-                    case EType.TStatic:
+                    case EType.Static:
                         _Statics[_Interactions[_Selection].Num].ResizeElement(stepW, stepH);
                         break;
 
-                    case EType.TText:
+                    case EType.Text:
                         _Texts[_Interactions[_Selection].Num].ResizeElement(stepW, stepH);
                         break;
 
-                    case EType.TSongMenu:
+                    case EType.SongMenu:
                         _SongMenus[_Interactions[_Selection].Num].ResizeElement(stepW, stepH);
                         break;
 
-                    case EType.TLyric:
+                    case EType.Lyric:
                         _Lyrics[_Interactions[_Selection].Num].ResizeElement(stepW, stepH);
                         break;
 
-                    case EType.TNameSelection:
+                    case EType.NameSelection:
                         _NameSelections[_Interactions[_Selection].Num].ResizeElement(stepW, stepH);
                         break;
 
-                    case EType.TEqualizer:
+                    case EType.Equalizer:
                         _Equalizers[_Interactions[_Selection].Num].ResizeElement(stepW, stepH);
                         break;
 
-                    case EType.TPlaylist:
+                    case EType.Playlist:
                         _Playlists[_Interactions[_Selection].Num].ResizeElement(stepW, stepH);
                         break;
 
-                    case EType.TParticleEffect:
+                    case EType.ParticleEffect:
                         _ParticleEffects[_Interactions[_Selection].Num].ResizeElement(stepW, stepH);
                         break;
                 }
             }
         }
 
-        private bool CheckVersion(int Version, CXMLReader xmlReader)
+        private bool _CheckVersion(int reqVersion, CXMLReader xmlReader)
         {
-            int version = 0;
-            xmlReader.TryGetIntValue("//root/" + _ThemeName + "/ScreenVersion", ref version);
+            int actualVersion = 0;
+            xmlReader.TryGetIntValue("//root/" + ThemeName + "/ScreenVersion", ref actualVersion);
 
-            if (version == Version)
+            if (actualVersion == reqVersion)
                 return true;
+            string msg = "Can't load screen file of screen \"" + ThemeName + "\", ";
+            if (actualVersion < reqVersion)
+                msg += "the file ist outdated! ";
             else
-            {
-                string msg = "Can't load screen file of screen \"" + _ThemeName + "\", ";
-                if (version < Version)
-                    msg += "the file ist outdated! ";
-                else
-                    msg += "the file is for newer program versions! ";
+                msg += "the file is for newer program versions! ";
 
-                msg += "Current screen version is " + Version.ToString();
-                CBase.Log.LogError(msg);
-            }
+            msg += "Current screen version is " + reqVersion;
+            CBase.Log.LogError(msg);
             return false;
         }
 
-        private void LoadThemeBasics(CXMLReader xmlReader, int SkinIndex)
+        private void _LoadThemeBasics(CXMLReader xmlReader, int skinIndex)
         {
-            string value = String.Empty;
-
             // Backgrounds
-            CBackground background = new CBackground( _PartyModeID);
+            CBackground background = new CBackground(_PartyModeID);
             int i = 1;
-            while (background.LoadTheme("//root/" + _ThemeName, "Background" + i.ToString(), xmlReader, SkinIndex))
+            while (background.LoadTheme("//root/" + ThemeName, "Background" + i, xmlReader, skinIndex))
             {
-                AddBackground(background);
+                _AddBackground(background);
                 background = new CBackground(_PartyModeID);
                 i++;
-            }  
-            
+            }
+
             // Statics
             CStatic stat = new CStatic(_PartyModeID);
             i = 1;
-            while (stat.LoadTheme("//root/" + _ThemeName, "Static" + i.ToString(), xmlReader, SkinIndex))
+            while (stat.LoadTheme("//root/" + ThemeName, "Static" + i, xmlReader, skinIndex))
             {
-                AddStatic(stat);
+                _AddStatic(stat);
                 stat = new CStatic(_PartyModeID);
                 i++;
-            }  
+            }
 
             // Texts
             CText text = new CText(_PartyModeID);
             i = 1;
-            while (text.LoadTheme("//root/" + _ThemeName, "Text" + i.ToString(), xmlReader, SkinIndex))
+            while (text.LoadTheme("//root/" + ThemeName, "Text" + i, xmlReader, skinIndex))
             {
-                AddText(text);
+                _AddText(text);
                 text = new CText(_PartyModeID);
                 i++;
             }
 
             // ParticleEffects
-            CParticleEffect  partef = new CParticleEffect(_PartyModeID);
+            CParticleEffect partef = new CParticleEffect(_PartyModeID);
             i = 1;
-            while (partef.LoadTheme("//root/" + _ThemeName, "ParticleEffect" + i.ToString(), xmlReader, SkinIndex))
+            while (partef.LoadTheme("//root/" + ThemeName, "ParticleEffect" + i, xmlReader, skinIndex))
             {
-                AddParticleEffect(partef);
+                _AddParticleEffect(partef);
                 partef = new CParticleEffect(_PartyModeID);
                 i++;
-            }  
+            }
         }
 
-        private void ReloadThemeEditMode()
+        private void _ReloadThemeEditMode()
         {
             CBase.Theme.UnloadSkins();
             CBase.Theme.ListSkins();

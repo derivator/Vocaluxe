@@ -1,20 +1,35 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Drawing;
-using System.Text;
-using System.Windows.Forms;
+﻿#region license
+// /*
+//     This file is part of Vocaluxe.
+// 
+//     Vocaluxe is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+// 
+//     Vocaluxe is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+// 
+//     You should have received a copy of the GNU General Public License
+//     along with Vocaluxe. If not, see <http://www.gnu.org/licenses/>.
+//  */
+#endregion
 
-using Vocaluxe.Base;
+using System;
+using System.Drawing;
 using Vocaluxe.Lib.Draw;
-using Vocaluxe.Menu;
+using VocaluxeLib;
+using VocaluxeLib.Draw;
+using VocaluxeLib.Menu;
 
 namespace Vocaluxe.Base
 {
     static class CDraw
     {
-        private static IDraw _Draw = null;
-        
+        private static IDraw _Draw;
+
         public static void InitDraw()
         {
             switch (CConfig.Renderer)
@@ -30,11 +45,8 @@ namespace Vocaluxe.Base
                     }
                     catch (Exception e)
                     {
-                        MessageBox.Show(e.Message + " - Error in initializing of OpenGL. Please check whether" +
-                            " your graphic card drivers are up to date.");
                         CLog.LogError(e.Message + " - Error in initializing of OpenGL. Please check whether" +
-                            " your graphic card drivers are up to date.");
-                        Environment.Exit(Environment.ExitCode);
+                                      " your graphic card drivers are up to date.", true, true);
                     }
                     break;
 
@@ -46,14 +58,9 @@ namespace Vocaluxe.Base
                     }
                     catch (Exception e)
                     {
-                        MessageBox.Show(e.Message + " - Error in initializing of Direct3D. Please check if " +
-                            "your DirectX redistributables and graphic card drivers are up to date. You can " +
-                            "download the DirectX runtimes at http://www.microsoft.com/download/en/details.aspx?id=8109",
-                    CSettings.sProgramName, MessageBoxButtons.OK, MessageBoxIcon.Error);
                         CLog.LogError(e.Message + " - Error in initializing of Direct3D. Please check if " +
-                            "your DirectX redistributables and graphic card drivers are up to date. You can " +
-                            "download the DirectX runtimes at http://www.microsoft.com/download/en/details.aspx?id=8109");
-                        Environment.Exit(Environment.ExitCode);
+                                      "your DirectX redistributables and graphic card drivers are up to date. You can " +
+                                      "download the DirectX runtimes at http://www.microsoft.com/download/en/details.aspx?id=8109", true, true);
                     }
                     break;
 #endif
@@ -62,7 +69,8 @@ namespace Vocaluxe.Base
                     _Draw = new CDrawWinForm();
                     break;
             }
-            _Draw.Init();
+            if (!_Draw.Init())
+                CLog.LogError("Could not init drawing interface!", true, true);
         }
 
         public static void MainLoop()
@@ -71,9 +79,10 @@ namespace Vocaluxe.Base
             _Draw.MainLoop();
         }
 
-        public static bool Unload()
+        public static void Unload()
         {
-            return _Draw.Unload();
+            _Draw.Unload();
+            _Draw = null;
         }
 
         public static int GetScreenWidth()
@@ -86,30 +95,20 @@ namespace Vocaluxe.Base
             return _Draw.GetScreenHeight();
         }
 
-        public static RectangleF GetTextBounds(CText text)
-        {
-            return _Draw.GetTextBounds(text);
-        }
-
-        public static RectangleF GetTextBounds(CText text, float Height)
-        {
-            return _Draw.GetTextBounds(text, Height);
-        }
-
         public static void DrawLine(int a, int r, int g, int b, int w, int x1, int y1, int x2, int y2)
         {
             _Draw.DrawLine(a, r, g, b, w, x1, y1, x2, y2);
         }
 
-        public static void DrawRect(SColorF Color, SRectF Rect, float Thickness)
+        public static void DrawRect(SColorF color, SRectF rect, float thickness)
         {
-            if (Thickness <= 0f)
+            if (thickness <= 0f)
                 return;
 
-            _Draw.DrawColor(Color, new SRectF(Rect.X - Thickness / 2, Rect.Y - Thickness / 2, Rect.W + Thickness, Thickness, Rect.Z));
-            _Draw.DrawColor(Color, new SRectF(Rect.X - Thickness / 2, Rect.Y + Rect.H - Thickness / 2, Rect.W + Thickness, Thickness, Rect.Z));
-            _Draw.DrawColor(Color, new SRectF(Rect.X - Thickness / 2, Rect.Y - Thickness / 2, Thickness, Rect.H + Thickness, Rect.Z));
-            _Draw.DrawColor(Color, new SRectF(Rect.X + Rect.W - Thickness / 2, Rect.Y - Thickness / 2, Thickness, Rect.H + Thickness, Rect.Z));
+            _Draw.DrawColor(color, new SRectF(rect.X - thickness / 2, rect.Y - thickness / 2, rect.W + thickness, thickness, rect.Z));
+            _Draw.DrawColor(color, new SRectF(rect.X - thickness / 2, rect.Y + rect.H - thickness / 2, rect.W + thickness, thickness, rect.Z));
+            _Draw.DrawColor(color, new SRectF(rect.X - thickness / 2, rect.Y - thickness / 2, thickness, rect.H + thickness, rect.Z));
+            _Draw.DrawColor(color, new SRectF(rect.X + rect.W - thickness / 2, rect.Y - thickness / 2, thickness, rect.H + thickness, rect.Z));
         }
 
         public static void DrawColor(SColorF color, SRectF rect)
@@ -127,147 +126,102 @@ namespace Vocaluxe.Base
             _Draw.ClearScreen();
         }
 
-        public static STexture CopyScreen()
+        public static CTexture CopyScreen()
         {
             return _Draw.CopyScreen();
         }
 
-        public static void CopyScreen(ref STexture Texture)
+        public static void CopyScreen(ref CTexture texture)
         {
-            _Draw.CopyScreen(ref Texture);
+            _Draw.CopyScreen(ref texture);
         }
 
         public static void MakeScreenShot()
         {
             _Draw.MakeScreenShot();
         }
-        
-        // Draw Basic Text (must be deleted later)
-        public static void DrawText(string Text, int x, int y, int h)
+
+        public static CTexture AddTexture(Bitmap bitmap)
         {
-            _Draw.DrawText(Text, x, y, h);
+            return _Draw.AddTexture(bitmap);
         }
 
-        public static STexture AddTexture(Bitmap Bitmap)
+        public static CTexture AddTexture(string texturePath)
         {
-            return _Draw.AddTexture(Bitmap);
+            return _Draw.AddTexture(texturePath);
         }
 
-        public static STexture AddTexture(string TexturePath)
+        public static CTexture AddTexture(int w, int h, byte[] data)
         {
-            return _Draw.AddTexture(TexturePath);
+            return _Draw.AddTexture(w, h, data);
         }
 
-        public static STexture AddTexture(string TexturePath, int MaxSize)
+        public static CTexture EnqueueTexture(int w, int h, byte[] data)
         {
-            if (MaxSize == 0)
-                return _Draw.AddTexture(TexturePath);
-
-            if (!System.IO.File.Exists(TexturePath))
-                return new STexture(-1);
-
-            Bitmap origin = new Bitmap(TexturePath);
-            int w = MaxSize;
-            int h = MaxSize;
-
-            if (origin.Width >= origin.Height && origin.Width > w)
-                h = (int)Math.Round((float)w / origin.Width * origin.Height);
-            else if (origin.Height > origin.Width && origin.Height > h)
-                w = (int)Math.Round((float)h / origin.Height * origin.Width);
-
-            Bitmap bmp = new Bitmap(origin, w, h);
-            STexture tex = _Draw.AddTexture(bmp);
-            bmp.Dispose();
-            origin.Dispose();
-            return tex;
+            return _Draw.EnqueueTexture(w, h, data);
         }
 
-        public static STexture AddTexture(int W, int H, IntPtr Data)
+        public static bool UpdateTexture(CTexture texture, int w, int h, byte[] data)
         {
-            return _Draw.AddTexture(W, H, Data);
+            return _Draw.UpdateTexture(texture, w, h, data);
         }
 
-        public static STexture AddTexture(int W, int H, ref byte[] Data)
+        public static bool UpdateOrAddTexture(ref CTexture texture, int w, int h, byte[] data)
         {
-            return _Draw.AddTexture(W, H, ref Data);
+            return _Draw.UpdateOrAddTexture(ref texture, w, h, data);
         }
 
-        public static STexture QuequeTexture(int W, int H, ref byte[] Data)
+        public static void RemoveTexture(ref CTexture texture)
         {
-            return _Draw.QuequeTexture(W, H, ref Data);
+            _Draw.RemoveTexture(ref texture);
         }
 
-        public static bool UpdateTexture(ref STexture Texture, ref byte[] Data)
+        public static void DrawTexture(CTexture texture)
         {
-            return _Draw.UpdateTexture(ref Texture, ref Data);
+            _Draw.DrawTexture(texture);
         }
 
-        public static bool UpdateTexture(ref STexture Texture, IntPtr Data)
+        public static void DrawTexture(CTexture texture, SRectF rect)
         {
-            return _Draw.UpdateTexture(ref Texture, Data);
+            _Draw.DrawTexture(texture, rect);
         }
 
-        public static void RemoveTexture(ref STexture Texture)
+        public static void DrawTexture(CTexture texture, SRectF rect, SColorF color, bool mirrored = false)
         {
-            _Draw.RemoveTexture(ref Texture);
+            _Draw.DrawTexture(texture, rect, color, mirrored);
         }
 
-        public static void DrawTexture(STexture Texture)
+        public static void DrawTexture(CTexture texture, SRectF rect, SColorF color, SRectF bounds, bool mirrored = false)
         {
-            _Draw.DrawTexture(Texture);
+            _Draw.DrawTexture(texture, rect, color, bounds, mirrored);
         }
 
-        public static void DrawTexture(STexture Texture, SRectF rect)
+        public static void DrawTexture(CTexture texture, SRectF rect, SColorF color, float begin, float end)
         {
-            _Draw.DrawTexture(Texture, rect);
+            _Draw.DrawTexture(texture, rect, color, begin, end);
         }
 
-        public static void DrawTexture(STexture Texture, SRectF rect, SColorF color)
+        public static void DrawTexture(CStatic staticBounds, CTexture texture, EAspect aspect)
         {
-            _Draw.DrawTexture(Texture, rect, color);
-        }
-
-        public static void DrawTexture(STexture Texture, SRectF rect, SColorF color, SRectF bounds)
-        {
-            _Draw.DrawTexture(Texture, rect, color, bounds);
-        }
-
-        public static void DrawTexture(STexture Texture, SRectF rect, SColorF color, bool mirrored)
-        {
-            _Draw.DrawTexture(Texture, rect, color, mirrored);
-        }
-
-        public static void DrawTexture(STexture Texture, SRectF rect, SColorF color, SRectF bounds, bool mirrored)
-        {
-            _Draw.DrawTexture(Texture, rect, color, bounds, mirrored);
-        }
-
-        public static void DrawTexture(STexture Texture, SRectF rect, SColorF color, float begin, float end)
-        {
-            _Draw.DrawTexture(Texture, rect, color, begin, end);
-        }
-
-        public static void DrawTexture(CStatic StaticBounds, STexture Texture, EAspect Aspect)
-        {
-            RectangleF bounds = new RectangleF(StaticBounds.Rect.X, StaticBounds.Rect.Y, StaticBounds.Rect.W, StaticBounds.Rect.H);
-            RectangleF rect = new RectangleF(0f, 0f, Texture.width, Texture.height);
-
-            if (rect.Height <= 0f)
+            if (texture == null)
                 return;
 
-            CHelper.SetRect(bounds, ref rect, rect.Width / rect.Height, Aspect);
-            DrawTexture(Texture, new SRectF(rect.X, rect.Y, rect.Width, rect.Height, StaticBounds.Rect.Z),
-                    Texture.color, new SRectF(bounds.X, bounds.Y, bounds.Width, bounds.Height, 0f), false);
+            RectangleF bounds = new RectangleF(staticBounds.Rect.X, staticBounds.Rect.Y, staticBounds.Rect.W, staticBounds.Rect.H);
+            RectangleF rect;
+
+            CHelper.SetRect(bounds, out rect, texture.OrigAspect, aspect);
+            DrawTexture(texture, new SRectF(rect.X, rect.Y, rect.Width, rect.Height, staticBounds.Rect.Z),
+                        texture.Color, new SRectF(bounds.X, bounds.Y, bounds.Width, bounds.Height, 0f));
         }
 
-        public static void DrawTextureReflection(STexture Texture, SRectF rect, SColorF color, SRectF bounds, float space, float height)
+        public static void DrawTextureReflection(CTexture texture, SRectF rect, SColorF color, SRectF bounds, float space, float height)
         {
-            _Draw.DrawTextureReflection(Texture, rect, color, bounds, space, height);
+            _Draw.DrawTextureReflection(texture, rect, color, bounds, space, height);
         }
 
         public static int TextureCount()
         {
-            return _Draw.TextureCount();
+            return _Draw.GetTextureCount();
         }
     }
 }

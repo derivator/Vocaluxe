@@ -1,100 +1,59 @@
-﻿using System;
+﻿#region license
+// /*
+//     This file is part of Vocaluxe.
+// 
+//     Vocaluxe is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+// 
+//     Vocaluxe is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+// 
+//     You should have received a copy of the GNU General Public License
+//     along with Vocaluxe. If not, see <http://www.gnu.org/licenses/>.
+//  */
+#endregion
+
+using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Globalization;
-using System.IO;
-using System.Text;
-using System.Text.RegularExpressions;
+using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading;
-using System.Reflection;
-
-using Vocaluxe.Lib.Draw;
-
-using Vocaluxe.Menu;
-using Vocaluxe.Menu.SongMenu;
+using VocaluxeLib;
+using VocaluxeLib.Songs;
 
 namespace Vocaluxe.Base
 {
-    public struct SongPointer
-    {
-        public int SongID;
-        public string SortString;
-
-        public int CatIndex;
-        public bool Visible;
-        public bool PartyHidden;
-
-        public SongPointer(int ID, string sortString)
-        {
-            SongID = ID;
-            SortString = sortString;
-            CatIndex = -1;
-            Visible = false;
-            PartyHidden = false;
-        }
-    }
-
     static class CSongs
     {
-        private static List<CSong> _Songs = new List<CSong>();
-        private static List<CSong> _FilteredSongs = new List<CSong>();
-        private static SongPointer[] _SongsSortList = new SongPointer[0];
-        private static List<CSong> _SongsForRandom = new List<CSong>();
+        private static readonly List<CSong> _Songs = new List<CSong>();
+        private static readonly List<CSong> _SongsForRandom = new List<CSong>();
 
-        private static bool _SongsLoaded = false;
-        private static bool _CoverLoaded = false;
-        private static int _CoverLoadIndex = -1;
+        private static bool _CoverLoaded;
         private static int _CatIndex = -1;
-        private static bool _Init = false;
-        private static List<CCategory> _Categories = new List<CCategory>();
-        private static List<CCategory> _CategoriesForRandom = new List<CCategory>();
+        private static readonly List<CCategory> _CategoriesForRandom = new List<CCategory>();
 
-        private static Stopwatch _CoverLoadTimer = new Stopwatch();
+        public static readonly CSongFilter Filter = new CSongFilter();
+        public static readonly CSongSorter Sorter = new CSongSorter();
+        public static readonly CSongCategorizer Categorizer = new CSongCategorizer();
 
-        private static string _SearchFilter = String.Empty;
-        private static EOffOn _Tabs = CConfig.Tabs;
-        private static EOffOn _IgnoreArticles = CConfig.IgnoreArticles;
-        private static ESongSorting _SongSorting = CConfig.SongSorting;
-        private static bool _ShowDuetSongs = true;
+        private static Thread _CoverLoaderThread;
 
-        private static Thread _CoverLoaderThread = null;
-                    
-        public static string SearchFilter
+        public static List<CSong> Songs
         {
-            get { return _SearchFilter; }
-            set
-            {
-                if (value != String.Empty)
-                {
-                    _Sort(_SongSorting, EOffOn.TR_CONFIG_OFF, _IgnoreArticles, value, false, _ShowDuetSongs);
-                }
-                else
-                {
-                    _Sort(_SongSorting, _Tabs, _IgnoreArticles, value, false, _ShowDuetSongs);
-                }
-            }
+            get { return _Songs; }
         }
 
-        public static EOffOn Tabs
-        {
-            get { return _Tabs; }
-        }
-
-        public static EOffOn IgnoreArticles
-        {
-            get { return _IgnoreArticles; }
-        }
-
-        public static bool SongsLoaded
-        {
-            get { return _SongsLoaded; }
-        }
+        public static bool SongsLoaded { get; private set; }
 
         public static bool CoverLoaded
         {
-            get 
+            get
             {
-                if (_SongsLoaded && NumAllSongs == 0)
+                if (SongsLoaded && NumAllSongs == 0)
                     _CoverLoaded = true;
                 return _CoverLoaded;
             }
@@ -105,189 +64,131 @@ namespace Vocaluxe.Base
             get { return _Songs.Count; }
         }
 
-        public static int NumVisibleSongs
+        public static int NumSongsVisible
         {
-            get
-            {
-                int Result = 0;
-                foreach (SongPointer sp in _SongsSortList)
-                {
-                    if (sp.Visible)
-                        Result++;
-                }
-                return Result;
-            }
+            get { return _CatIndex < 0 ? 0 : Categories[_CatIndex].Songs.Count(sp => !sp.IsSung); }
         }
 
         public static int NumCategories
         {
-            get { return _Categories.Count; }
+            get { return Categories.Count; }
         }
 
         public static int Category
         {
-            get { return _CatIndex; }
+            get
+            {
+                if (_CatIndex >= Categories.Count)
+                    _CatIndex = -1;
+                return _CatIndex;
+            }
             set
             {
-                if ((_Categories.Count > value) && (value >= -1))
-                {
+                if (value == -1 || _IsCatIndexValid(value))
                     _CatIndex = value;
-
-                    for (int i = 0; i < _SongsSortList.Length; i++)
-                    {
-                        _SongsSortList[i].Visible = (_SongsSortList[i].CatIndex == _CatIndex && !_SongsSortList[i].PartyHidden);
-                    }
-                }
             }
         }
 
-        /// <summary>
-        /// Returns the number of song in the category specified with CatIndex
-        /// </summary>
-        /// <param name="CatIndex">Category index</param>
-        /// <returns></returns>
-        public static int NumSongsInCategory(int CatIndex)
+        public static bool IsInCategory
         {
-            if (_Categories.Count <= CatIndex || CatIndex < 0)
-                return 0;
+            get { return _IsCatIndexValid(_CatIndex); }
+        }
 
-            int num = 0;
-            for (int i = 0; i < _SongsSortList.Length; i++)
-            {
-                if (_SongsSortList[i].CatIndex == CatIndex && !_SongsSortList[i].PartyHidden)
-                    num++;
-            }
-            return num;
+        private static bool _IsCatIndexValid(int catIndex)
+        {
+            return catIndex >= 0 && catIndex < Categories.Count;
+        }
+
+        /// <summary>
+        ///     Returns the number of song in the category specified with CatIndex
+        /// </summary>
+        /// <param name="catIndex">Category index</param>
+        /// <returns></returns>
+        public static int NumSongsInCategory(int catIndex)
+        {
+            return _IsCatIndexValid(catIndex) ? Categories[catIndex].Songs.Count(sp => !sp.IsSung) : 0;
         }
 
         public static void NextCategory()
         {
-            if (Category == _Categories.Count - 1)
+            if (Category == Categories.Count - 1)
                 Category = 0;
             else
                 Category++;
         }
+
         public static void PrevCategory()
         {
             if (Category == 0)
-                Category = _Categories.Count - 1;
+                Category = Categories.Count - 1;
             else
                 Category--;
         }
 
-        public static int GetNextSongWithoutCover(ref CSong Song)
+        public static int GetNextSongWithoutCover(ref CSong song)
         {
             if (!SongsLoaded)
                 return -1;
 
-            if (_Songs.Count > _CoverLoadIndex + 1)
+            if (NumSongsWithCoverLoaded < _Songs.Count)
             {
-                _CoverLoadIndex++;
-                Song = _Songs[_CoverLoadIndex];
-                return _CoverLoadIndex;
+                song = _Songs[NumSongsWithCoverLoaded];
+                NumSongsWithCoverLoaded++;
+                return NumSongsWithCoverLoaded;
             }
 
             return -2;
         }
-        public static int NumSongsWithCoverLoaded
-        {
-            get { return _CoverLoadIndex + 1; }
-        }
 
-        public static void SetCoverSmall(int SongIndex, STexture Texture)
-        {
-            if (!_SongsLoaded)
-                return;
-
-            if (SongIndex < _Songs.Count)
-            {
-                _Songs[SongIndex].CoverTextureSmall = Texture;
-                if (SongIndex == _Songs.Count - 1)
-                    _CoverLoaded = true;
-            }
-
-        }
-        public static void SetCoverBig(int SongIndex, STexture Texture)
-        {
-            if (!_SongsLoaded)
-                return;
-
-            if (SongIndex < _Songs.Count)
-            {
-                _Songs[SongIndex].CoverTextureBig = Texture;
-                if (SongIndex == _Songs.Count - 1)
-                    _CoverLoaded = true;
-            }
-
-        }
+        public static int NumSongsWithCoverLoaded { get; private set; }
 
         public static string GetCurrentCategoryName()
         {
-            if ((_Categories.Count > 0) && (_CatIndex >= 0) && (_Categories.Count > _CatIndex))
-                return _Categories[_CatIndex].Name;
-            else
-                return String.Empty;
+            return _IsCatIndexValid(_CatIndex) ? Categories[_CatIndex].Name : "";
         }
 
-        public static CSong GetSong(int SongID)
+        public static CSong GetSong(int songID)
         {
-            foreach (CSong song in _Songs)
-            {
-                if (song.ID == SongID)
-                    return song;
-            }
-            return null;
+            return _Songs.FirstOrDefault(song => song.ID == songID);
         }
 
-        public static void AddPartySongSung(int SongID)
+        public static void AddPartySongSung(int songID)
         {
-            int cat = -1;
-            for (int i = 0; i < _SongsSortList.Length; i++)
+            foreach (CCategory category in Categories)
             {
-                if (SongID == _SongsSortList[i].SongID)
+                foreach (CSongPointer song in category.Songs.Where(song => song.SongID == songID))
                 {
-                    _SongsSortList[i].PartyHidden = true;
-                    _SongsSortList[i].Visible = false;
-                    cat = _SongsSortList[i].CatIndex;
-                    break;
+                    song.IsSung = true;
+                    int catIndex = _GetCategoryNumber(category);
+                    if (NumSongsInCategory(catIndex) == 0)
+                        ResetPartySongSung(catIndex);
+                    return;
                 }
-            }
-
-            if (cat != -1)
-            {
-                if (NumSongsInCategory(cat) == 0)
-                    ResetPartySongSung(cat);
             }
         }
 
         public static void ResetPartySongSung()
         {
-            for (int i = 0; i < _SongsSortList.Length; i++)
-            {
-                _SongsSortList[i].PartyHidden = false;
-                _SongsSortList[i].Visible = (_SongsSortList[i].CatIndex == _CatIndex && !_SongsSortList[i].PartyHidden);
-            }
+            foreach (CSongPointer song in Sorter.SortedSongs)
+                song.IsSung = false;
         }
 
-        public static void ResetPartySongSung(int CatIndex)
+        public static void ResetPartySongSung(int catIndex)
         {
-            for (int i = 0; i < _SongsSortList.Length; i++)
+            if (_IsCatIndexValid(catIndex))
             {
-                if (_SongsSortList[i].CatIndex == CatIndex)
-                {
-                    _SongsSortList[i].PartyHidden = false;
-                    _SongsSortList[i].Visible = (_SongsSortList[i].CatIndex == _CatIndex && !_SongsSortList[i].PartyHidden);
-                }
+                foreach (CSongPointer song in Categories[catIndex].Songs)
+                    song.IsSung = false;
             }
         }
 
-        public static int GetVisibleSongNumber(int SongID)
+        public static int GetVisibleSongNumber(int songID)
         {
             int i = -1;
             foreach (CSong song in VisibleSongs)
             {
                 i++;
-                if (song.ID == SongID)
+                if (song.ID == songID)
                     return i;
             }
             return i;
@@ -296,14 +197,12 @@ namespace Vocaluxe.Base
         public static int GetRandomSong()
         {
             if (_SongsForRandom.Count == 0)
-            {
                 UpdateRandomSongList();
-            }
 
             if (_SongsForRandom.Count == 0)
                 return -1;
 
-            CSong song = _SongsForRandom[CGame.Rand.Next(0, _SongsForRandom.Count-1)];
+            CSong song = _SongsForRandom[CGame.Rand.Next(0, _SongsForRandom.Count - 1)];
             _SongsForRandom.Remove(song);
             return GetVisibleSongNumber(song.ID);
         }
@@ -324,7 +223,7 @@ namespace Vocaluxe.Base
 
             CCategory category = _CategoriesForRandom[CGame.Rand.Next(0, _CategoriesForRandom.Count - 1)];
             _CategoriesForRandom.Remove(category);
-            return GetCategoryNumber(category);
+            return _GetCategoryNumber(category);
         }
 
         public static void UpdateRandomCategoryList()
@@ -333,9 +232,9 @@ namespace Vocaluxe.Base
             _CategoriesForRandom.AddRange(Categories);
         }
 
-        private static int GetCategoryNumber(CCategory category)
+        private static int _GetCategoryNumber(CCategory category)
         {
-            for (int i = 0; i < Categories.Length; i++)
+            for (int i = 0; i < Categories.Count; i++)
             {
                 if (Categories[i] == category)
                     return i;
@@ -343,362 +242,59 @@ namespace Vocaluxe.Base
             return -1;
         }
 
-        public static CSong[] AllSongs
+        public static ReadOnlyCollection<CSong> AllSongs
         {
-            get { return _Songs.ToArray(); }
+            get { return _Songs.AsReadOnly(); }
         }
 
-        public static CSong[] SongsNotSung
-        {
-            get 
-            {
-                List<CSong> songs = new List<CSong>();
-                foreach (SongPointer sp in _SongsSortList)
-                {
-                    if (sp.Visible)
-                        songs.Add(_Songs[sp.SongID]);
-                }
-                return songs.ToArray();
-            }
-        }
-
-        public static CSong[] VisibleSongs
+        public static ReadOnlyCollection<CSong> VisibleSongs
         {
             get
             {
                 List<CSong> songs = new List<CSong>();
-                foreach (SongPointer sp in _SongsSortList)
+                if (_IsCatIndexValid(_CatIndex))
                 {
-                    if (sp.Visible)
-                        songs.Add(_Songs[sp.SongID]);
-                }
-                return songs.ToArray();
-            }
-        }
-
-        public static CCategory[] Categories
-        {
-            get { return _Categories.ToArray(); }
-        }
-
-        private static void _FilterSongs(String SearchFilter, bool ShowDuetSongs)
-        {
-            if (_Init && _SearchFilter == SearchFilter && _ShowDuetSongs == ShowDuetSongs)
-                return;
-
-            _Init = true;
-            _SearchFilter = SearchFilter;
-            _ShowDuetSongs = ShowDuetSongs;
-            _FilteredSongs.Clear();
-
-            string[] searchStrings = null;
-            if (_SearchFilter != String.Empty)
-                searchStrings = _SearchFilter.ToUpper().Split(new char[] { ' ' });
-
-            foreach (CSong song in _Songs)
-            {
-                if (!song.IsDuet || _ShowDuetSongs)
-                {
-                    if (_SearchFilter == String.Empty)
-                        _FilteredSongs.Add(song);
-                    else if (searchStrings != null)
+                    // ReSharper disable LoopCanBeConvertedToQuery
+                    foreach (CSongPointer sp in Categories[_CatIndex].Songs)
+                        // ReSharper restore LoopCanBeConvertedToQuery
                     {
-                        string search = song.Title.ToUpper() + " " + song.Artist.ToUpper() + " " + song.FolderName.ToUpper() + " " + song.FileName.ToUpper();
-
-                        bool contains = true;
-
-                        foreach (string str in searchStrings)
-                        {
-                            contains &= search.Contains(str);
-                        }
-                        if (contains)
-                            _FilteredSongs.Add(song);
+                        if (!sp.IsSung)
+                            songs.Add(_Songs[sp.SongID]);
                     }
                 }
+                return songs.AsReadOnly();
             }
         }
 
-        private static int _SortByFieldArtistTitle(SongPointer s1, SongPointer s2)
+        public static ReadOnlyCollection<CCategory> Categories
         {
-            int res = s1.SortString.ToUpper().CompareTo(s2.SortString.ToUpper());
-            if (res == 0)
-            {
-                if (_IgnoreArticles == EOffOn.TR_CONFIG_ON)
-                {
-                    res = _Songs[s1.SongID].ArtistSorting.ToUpper().CompareTo(_Songs[s2.SongID].ArtistSorting.ToUpper());
-                    if (res == 0)
-                    {
-                        return _Songs[s1.SongID].TitleSorting.ToUpper().CompareTo(_Songs[s2.SongID].TitleSorting.ToUpper());
-                    }
-                    return res;
-                }
-                else
-                {
-                    res = _Songs[s1.SongID].Artist.ToUpper().CompareTo(_Songs[s2.SongID].Artist.ToUpper());
-                    if (res == 0)
-                    {
-                        return _Songs[s1.SongID].Title.ToUpper().CompareTo(_Songs[s2.SongID].Title.ToUpper());
-                    }
-                    return res;
-                }
-            }
-            return res;
+            get { return Categorizer.Categories.AsReadOnly(); }
         }
 
-        private static int _SortByFieldTitle(SongPointer s1, SongPointer s2)
+        public static CSong GetVisibleSongByIndex(int index)
         {
-            int res = s1.SortString.ToUpper().CompareTo(s2.SortString.ToUpper());
-            if (res == 0)
-            {
-                if (_IgnoreArticles == EOffOn.TR_CONFIG_ON)
-                    return _Songs[s1.SongID].TitleSorting.ToUpper().CompareTo(_Songs[s2.SongID].TitleSorting.ToUpper());
-                else
-                    return _Songs[s1.SongID].Title.ToUpper().CompareTo(_Songs[s2.SongID].Title.ToUpper());
-            }
-            return res;
+            if (index < 0)
+                return null;
+            ReadOnlyCollection<CSong> visSongs = VisibleSongs;
+            return (index < visSongs.Count) ? visSongs[index] : null;
         }
 
-        private static List<SongPointer> _CreateSortList(string fieldName)
+        private static void _HandleCategoriesChanged(object sender, EventArgs args)
         {
-            FieldInfo field = null;
-            bool isString = false;
-            List<SongPointer> SortList = new List<SongPointer>();
-            if (fieldName == String.Empty)
-                _FilteredSongs.ForEach((song) => SortList.Add(new SongPointer(song.ID, "")));
-            {
-                field = Type.GetType("Vocaluxe.Menu.SongMenu.CSong,VocaluxeLib").GetField(fieldName, BindingFlags.Instance | BindingFlags.DeclaredOnly | BindingFlags.Public);
-                isString = field.FieldType == typeof(string);
-                if (!isString && field.FieldType != typeof(List<String>))
-                    throw new Exception("Unkown sort field type");
-                foreach (CSong song in _FilteredSongs)
-                {
-                    object value = field.GetValue(song);
-                    if (isString)
-                        SortList.Add(new SongPointer(song.ID, (String)value));
-                    else
-                    {
-                        List<String> values = (List<String>)value;
-                        if (values.Count == 0)
-                        {
-                            SortList.Add(new SongPointer(song.ID, ""));
-                        }
-                        else
-                        {
-                            foreach (String sortString in (List<String>)value)
-                            {
-                                SortList.Add(new SongPointer(song.ID, sortString));
-                            }
-                        }
-                    }
-                }
-            }
-            return SortList;
-        }
-        
-        private static void SortSongs()
-        {
-            String fieldName;
-            switch (_SongSorting)
-            {
-                case ESongSorting.TR_CONFIG_EDITION:
-                    fieldName = "Edition";
-                    break;
-                case ESongSorting.TR_CONFIG_GENRE:
-                    fieldName = "Genre";
-                    break;
-                case ESongSorting.TR_CONFIG_FOLDER:
-                    fieldName = "FolderName";
-                    break;
-                case ESongSorting.TR_CONFIG_ARTIST_LETTER:
-                case ESongSorting.TR_CONFIG_ARTIST:
-                    if (_IgnoreArticles == EOffOn.TR_CONFIG_ON)
-                        fieldName = "ArtistSorting";
-                    else
-                        fieldName = "Artist";
-                    break;
-                case ESongSorting.TR_CONFIG_TITLE_LETTER:
-                    if (_IgnoreArticles == EOffOn.TR_CONFIG_ON)
-                        fieldName = "TitleSorting";
-                    else
-                        fieldName = "Title";
-                    break;
-                case ESongSorting.TR_CONFIG_YEAR:
-                case ESongSorting.TR_CONFIG_DECADE:
-                    fieldName = "Year";
-                    break;
-                case ESongSorting.TR_CONFIG_LANGUAGE:
-                    fieldName = "Language";
-                    break;
-                default:
-                    fieldName = "";
-                    break;
-            }
-            List<SongPointer> SortList = _CreateSortList(fieldName);
-            switch (_SongSorting)
-            {
-                case ESongSorting.TR_CONFIG_ARTIST_LETTER:
-                case ESongSorting.TR_CONFIG_ARTIST:
-                case ESongSorting.TR_CONFIG_NONE:
-                    SortList.Sort(_SortByFieldTitle);
-                    break;
-                default:
-                    SortList.Sort(_SortByFieldArtistTitle);
-                    break;
-            }
-            _SongsSortList = SortList.ToArray();
+            _CategoriesForRandom.Clear();
         }
 
-        private static void _CreateCategoriesLetter()
+        public static void Sort(ESongSorting sorting, EOffOn tabs, EOffOn ignoreArticles, String searchString, EDuetOptions duetOptions)
         {
-            string category = "";
-            int NotLetterCat = -1;
-            for (int i = 0; i < _SongsSortList.Length; i++)
-            {
-                Char firstLetter = Char.ToUpper(_SongsSortList[i].SortString.Normalize(NormalizationForm.FormD)[0]);
-
-                if (!Char.IsLetter(firstLetter))
-                {
-                    firstLetter = '#';
-                }
-                if (firstLetter.ToString() != category)
-                {
-                    if (firstLetter != '#' || NotLetterCat == -1)
-                    {
-                        category = firstLetter.ToString();
-                        _Categories.Add(new CCategory(category));
-
-                        _SongsSortList[i].CatIndex = _Categories.Count - 1;
-
-                        if (firstLetter == '#')
-                            NotLetterCat = _SongsSortList[i].CatIndex;
-                    }
-                    else
-                        _SongsSortList[i].CatIndex = NotLetterCat;
-                }
-                else
-                    _SongsSortList[i].CatIndex = _Categories.Count - 1;
-            }
-        }
-
-        private static void _CreateCategoriesNormal(string NoCategoryName)
-        {
-            string category = "";
-            int NoCategoryIndex = -1;
-            for (int i = 0; i < _SongsSortList.Length; i++)
-            {
-                if (_SongsSortList[i].SortString.Length > 0)
-                {
-                    if (_SongsSortList[i].SortString != category)
-                    {
-                        category = _SongsSortList[i].SortString;
-                        _Categories.Add(new CCategory(category));
-                    }
-                    _SongsSortList[i].CatIndex = _Categories.Count - 1;
-                }
-                else
-                {
-                    if (NoCategoryIndex < 0)
-                    {
-                        category = NoCategoryName;
-                        _Categories.Add(new CCategory(category));
-                        NoCategoryIndex = _Categories.Count - 1;
-                    }
-                    _SongsSortList[i].CatIndex = NoCategoryIndex;
-                }
-            }
-
-        }
-
-        private static void _FillCategories()
-        {
-            string NoCategoryName = "";
-
-            switch (_SongSorting)
-            {
-                case ESongSorting.TR_CONFIG_EDITION:
-                    NoCategoryName = CLanguage.Translate("TR_SCREENSONG_NOEDITION");
-                    break;
-                case ESongSorting.TR_CONFIG_GENRE:
-                    NoCategoryName = CLanguage.Translate("TR_SCREENSONG_NOGENRE");
-                    break;
-                case ESongSorting.TR_CONFIG_DECADE:
-                case ESongSorting.TR_CONFIG_YEAR:
-                    NoCategoryName = CLanguage.Translate("TR_SCREENSONG_NOYEAR");
-                    break;
-                case ESongSorting.TR_CONFIG_LANGUAGE:
-                    NoCategoryName = CLanguage.Translate("TR_SCREENSONG_NOLANGUAGE");
-                    break;
-                case ESongSorting.TR_CONFIG_NONE:
-                    NoCategoryName = CLanguage.Translate("TR_SCREENSONG_ALLSONGS");
-                    break;
-            }
-            if (_SongSorting == ESongSorting.TR_CONFIG_ARTIST_LETTER || _SongSorting == ESongSorting.TR_CONFIG_TITLE_LETTER)
-                _CreateCategoriesLetter();
-            else
-            {
-                if(_SongSorting==ESongSorting.TR_CONFIG_DECADE)
-                    for (int i = 0; i < _SongsSortList.Length; i++)
-                    {
-                        string Year = _SongsSortList[i].SortString;
-                        if (Year != "")
-                        {
-                            Year = Year.Substring(0, 3);
-                            _SongsSortList[i].SortString = Year + "0 - " + Year + "9";
-                        }
-                    }
-                _CreateCategoriesNormal(NoCategoryName);
-            }
-                
-        }
-
-        public static void Sort(ESongSorting Sorting, EOffOn Tabs, EOffOn IgnoreArticles, String SearchString)
-        {
-            _Sort(Sorting, Tabs, IgnoreArticles, SearchString, false, _ShowDuetSongs);
-        }
-
-        public static void Sort(ESongSorting Sorting, EOffOn Tabs, EOffOn IgnoreArticles, String SearchString, bool ShowDuetSongs)
-        {
-            _Sort(Sorting, Tabs, IgnoreArticles, SearchString, false, ShowDuetSongs);
-        }
-
-        private static void _Sort(ESongSorting Sorting, EOffOn Tabs, EOffOn IgnoreArticles, string SearchString, bool force, bool ShowDuetSongs)
-        {
-            if (_Songs.Count == 0)
-                return;
-
-            if (!force && Sorting == _SongSorting && Tabs == _Tabs && IgnoreArticles == _IgnoreArticles && SearchString == _SearchFilter && ShowDuetSongs == _ShowDuetSongs)
-                return; //nothing to do
-
-            _IgnoreArticles = IgnoreArticles;
-            _SongSorting = Sorting;
-            _Tabs = Tabs;
-
-            _FilterSongs(SearchString, ShowDuetSongs);
-            SortSongs();
-            _Categories.Clear();         
-
-            if (_Tabs == EOffOn.TR_CONFIG_OFF)
-            {
-                //No categories. So don't create them!
-                _Categories.Add(new CCategory(""));
-                for (int i = 0; i < _SongsSortList.Length; i++)
-                {
-                    _SongsSortList[i].CatIndex = 0;
-                }
-            }else
-                _FillCategories();
-
-            foreach (CCategory cat in _Categories)
-            {
-                cat.CoverTextureSmall = CCover.Cover(cat.Name);
-            }
-            Category = _CatIndex;
+            Filter.SetOptions(searchString, duetOptions);
+            Sorter.SetOptions(sorting, ignoreArticles);
+            Categorizer.Tabs = tabs;
         }
 
         public static void LoadSongs()
         {
             CLog.StartBenchmark(1, "Load Songs");
-            _SongsLoaded = false;
+            SongsLoaded = false;
             _Songs.Clear();
 
             CLog.StartBenchmark(2, "List Songs");
@@ -714,23 +310,23 @@ namespace Vocaluxe.Base
             CLog.StartBenchmark(2, "Read TXTs");
             foreach (string file in files)
             {
-                CSong Song = CSong.LoadSong(file);
-                if (Song != null)
-                {
-                    Song.ID = _Songs.Count;
-                    _Songs.Add(Song);
-                    //Workaround to load notes if they are not loaded with the covers as there is no seperate progress indicator
-                    if (CConfig.CoverLoading != ECoverLoading.TR_CONFIG_COVERLOADING_ATSTART)
-                        Song.ReadNotes();
-                }
+                CSong song = CSong.LoadSong(file);
+                if (song == null)
+                    continue;
+                song.ID = _Songs.Count;
+                if (song.ReadNotes())
+                    _Songs.Add(song);
             }
             CLog.StopBenchmark(2, "Read TXTs");
 
             CLog.StartBenchmark(2, "Sort Songs");
-            _Sort(CConfig.SongSorting, CConfig.Tabs, CConfig.IgnoreArticles, String.Empty, true, true);
+            Sorter.SongSorting = CConfig.SongSorting;
+            Sorter.IgnoreArticles = CConfig.IgnoreArticles;
+            Categorizer.Tabs = CConfig.Tabs;
+            Categorizer.ObjectChanged += _HandleCategoriesChanged;
             CLog.StopBenchmark(2, "Sort Songs");
             Category = -1;
-            _SongsLoaded = true;
+            SongsLoaded = true;
 
             if (CConfig.CoverLoading == ECoverLoading.TR_CONFIG_COVERLOADING_ATSTART)
             {
@@ -745,28 +341,44 @@ namespace Vocaluxe.Base
         public static void LoadCover()
         {
             if (CConfig.Renderer == ERenderer.TR_CONFIG_SOFTWARE)
-                return;
+                return; //should be removed as soon as the other renderer are ready for queue
 
             if (!SongsLoaded || CoverLoaded)
                 return;
 
-            if (_CoverLoaderThread == null)
+            if (_CoverLoaderThread != null)
+                return;
+            _CoverLoaderThread = new Thread(_LoadCover) {Name = "CoverLoader", Priority = ThreadPriority.BelowNormal, IsBackground = true};
+            _CoverLoaderThread.Start();
+
+            /*
+            if (_CoverLoadTimer.ElapsedMilliseconds >= WaitTime)
             {
-                _CoverLoaderThread = new Thread(new ThreadStart(_LoadCover));
-                _CoverLoaderThread.Name = "CoverLoader";
-                _CoverLoaderThread.Priority = ThreadPriority.BelowNormal;
-                _CoverLoaderThread.IsBackground = true;
-                _CoverLoaderThread.Start();
+                for (int i = 0; i < NumLoads; i++)
+                {
+                    CSong song = null;
+                    int n = GetNextSongWithoutCover(ref song);
+
+                    if (n < 0)
+                        return;
+
+                    song.LoadSmallCover();
+
+                    if (n == NumAllSongs)
+                        CDataBase.CommitCovers();
+                }
+                _CoverLoadTimer.Reset();
+                _CoverLoadTimer.Start();
             }
+             * */
         }
 
         private static void _LoadCover()
         {
-            foreach(CSong song in _Songs)
+            foreach (CSong song in _Songs)
             {
-                song.ReadNotes();
                 song.LoadSmallCover();
-                _CoverLoadIndex++;
+                NumSongsWithCoverLoaded++;
             }
             GC.Collect();
             _CoverLoaded = true;

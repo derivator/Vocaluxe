@@ -1,77 +1,94 @@
-﻿using System;
+﻿#region license
+// /*
+//     This file is part of Vocaluxe.
+// 
+//     Vocaluxe is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+// 
+//     Vocaluxe is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+// 
+//     You should have received a copy of the GNU General Public License
+//     along with Vocaluxe. If not, see <http://www.gnu.org/licenses/>.
+//  */
+#endregion
+
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Xml;
-
 using Vocaluxe.Base;
-using Vocaluxe.GameModes;
-using Vocaluxe.Menu;
-using Vocaluxe.Menu.SongMenu;
+using VocaluxeLib;
+using VocaluxeLib.Menu;
+using VocaluxeLib.Songs;
 
 namespace Vocaluxe.Lib.Playlist
 {
     public class CPlaylistFile
     {
-        private static XmlWriterSettings _settings = new XmlWriterSettings();
+        private static readonly XmlWriterSettings _Settings = new XmlWriterSettings();
 
         public string PlaylistName;
         public string PlaylistFile;
         public List<CPlaylistSong> Songs = new List<CPlaylistSong>();
 
-        public CPlaylistFile() 
+        public CPlaylistFile()
         {
-            Init();
+            _Init();
             PlaylistName = string.Empty;
             PlaylistFile = string.Empty;
         }
 
         public CPlaylistFile(string file)
         {
-            Init();
+            _Init();
             PlaylistFile = file;
-            LoadPlaylist();
+            _LoadPlaylist();
         }
 
-        private void Init()
+        private void _Init()
         {
-            _settings.Indent = true;
-            _settings.Encoding = System.Text.Encoding.UTF8;
-            _settings.ConformanceLevel = ConformanceLevel.Document;
+            _Settings.Indent = true;
+            _Settings.Encoding = Encoding.UTF8;
+            _Settings.ConformanceLevel = ConformanceLevel.Document;
         }
-
 
         public void SavePlaylist()
         {
-            if (PlaylistFile == string.Empty)
+            if (PlaylistFile == "")
             {
                 string filename = string.Empty;
+                // ReSharper disable LoopCanBeConvertedToQuery
                 foreach (char chr in PlaylistName)
+                    // ReSharper restore LoopCanBeConvertedToQuery
                 {
                     if (char.IsLetter(chr))
                         filename += chr.ToString();
                 }
 
-                if (filename == String.Empty)
+                if (filename == "")
                     filename = "1";
 
                 int i = 0;
-                while (File.Exists(Path.Combine(CSettings.sFolderPlaylists, filename + ".xml")))
+                while (File.Exists(Path.Combine(CSettings.FolderPlaylists, filename + ".xml")))
                 {
                     i++;
-                    if (!File.Exists(Path.Combine(CSettings.sFolderPlaylists, filename + i + ".xml")))
-                    {
+                    if (!File.Exists(Path.Combine(CSettings.FolderPlaylists, filename + i + ".xml")))
                         filename += i;
-                    }
                 }
 
-                PlaylistFile = Path.Combine(CSettings.sFolderPlaylists, filename + ".xml");
+                PlaylistFile = Path.Combine(CSettings.FolderPlaylists, filename + ".xml");
             }
 
             XmlWriter writer;
             try
             {
-                writer = XmlWriter.Create(PlaylistFile, _settings);
+                writer = XmlWriter.Create(PlaylistFile, _Settings);
             }
             catch (Exception e)
             {
@@ -79,158 +96,138 @@ namespace Vocaluxe.Lib.Playlist
                 return;
             }
 
-            if (writer == null)
+            try
             {
-                CLog.LogError("Error creating/opening Playlist File " + PlaylistFile);
-                return;
+                writer.WriteStartDocument();
+                writer.WriteStartElement("root");
+
+                writer.WriteStartElement("Info");
+                writer.WriteElementString("PlaylistName", PlaylistName);
+                writer.WriteEndElement();
+
+                writer.WriteStartElement("Songs");
+                for (int i = 0; i < Songs.Count; i++)
+                {
+                    CSong song = CSongs.GetSong(Songs[i].SongID);
+                    if (song != null)
+                    {
+                        writer.WriteStartElement("Song" + (i + 1));
+                        writer.WriteElementString("Artist", song.Artist);
+                        writer.WriteElementString("Title", song.Title);
+                        writer.WriteElementString("GameMode", Enum.GetName(typeof(EGameMode), Songs[i].GameMode));
+                        writer.WriteEndElement();
+                    }
+                    else
+                        CLog.LogError("Playlist.SavePlaylist(): Can't find Song. This should never happen!");
+                }
+                writer.WriteEndElement();
+
+                writer.WriteEndElement(); //end of root
+                writer.WriteEndDocument();
+
+                writer.Flush();
             }
-
-            writer.WriteStartDocument();
-            writer.WriteStartElement("root");
-
-            writer.WriteStartElement("Info");
-            writer.WriteElementString("PlaylistName", PlaylistName);
-            writer.WriteEndElement();
-
-            writer.WriteStartElement("Songs");
-            for (int i = 0; i < Songs.Count; i++)
+            finally
             {
-                CSong song = CSongs.GetSong(Songs[i].SongID);
-                if (song != null)
-                {
-                    writer.WriteStartElement("Song" + (i + 1).ToString());
-                    writer.WriteElementString("Artist", song.Artist);
-                    writer.WriteElementString("Title", song.Title);
-                    writer.WriteElementString("GameMode", Enum.GetName(typeof(EGameMode), Songs[i].GameMode));
-                    writer.WriteEndElement();
-                }
-                else
-                {
-                    CLog.LogError("Playlist.SavePlaylist(): Can't find Song. This should never happen!");
-                }
+                writer.Close();
             }
-            writer.WriteEndElement();
-
-            writer.WriteEndElement(); //end of root
-            writer.WriteEndDocument();
-
-            writer.Flush();
-            writer.Close();
         }
 
-        private void LoadPlaylist()
+        private void _LoadPlaylist()
         {
             CXMLReader xmlReader = CXMLReader.OpenFile(PlaylistFile);
             if (xmlReader == null)
                 return;
 
             string value = String.Empty;
-            if (xmlReader.GetValue("//root/Info/PlaylistName", ref value, value))
+            if (xmlReader.GetValue("//root/Info/PlaylistName", out value, value))
             {
                 PlaylistName = value;
 
                 Songs = new List<CPlaylistSong>();
 
                 List<string> songs = xmlReader.GetValues("Songs");
-                string artist = String.Empty;
-                string title = String.Empty;
                 EGameMode gm = EGameMode.TR_GAMEMODE_NORMAL;
 
-                for (int i = 0; i < songs.Count; i++)
+                foreach (string song in songs)
                 {
-                    xmlReader.GetValue("//root/Songs/" + songs[i] + "/Artist", ref artist, String.Empty);
-                    xmlReader.GetValue("//root/Songs/" + songs[i] + "/Title", ref title, String.Empty);
-                    xmlReader.TryGetEnumValue<EGameMode>("//root/Songs/" + songs[i] + "/GameMode", ref gm);
+                    string artist;
+                    string title;
+                    xmlReader.GetValue("//root/Songs/" + song + "/Artist", out artist, String.Empty);
+                    xmlReader.GetValue("//root/Songs/" + song + "/Title", out title, String.Empty);
+                    xmlReader.TryGetEnumValue("//root/Songs/" + song + "/GameMode", ref gm);
 
-                    CPlaylistSong song = new CPlaylistSong();
-                    song.SongID = -1;
-                    CSong[] AllSongs = CSongs.AllSongs;
+                    CPlaylistSong playlistSong = new CPlaylistSong {SongID = -1};
 
-                    for (int s = 0; s < AllSongs.Length; s++)
+                    foreach (CSong curSong in CSongs.AllSongs)
                     {
-                        if (AllSongs[s].Artist == artist && AllSongs[s].Title == title)
-                        {
-                            song.SongID = AllSongs[s].ID;
-                            break;
-                        }
+                        if (curSong.Artist != artist || curSong.Title != title)
+                            continue;
+                        playlistSong.SongID = curSong.ID;
+                        break;
                     }
 
-                    if (song.SongID != -1)
+                    if (playlistSong.SongID != -1)
                     {
-                        song.GameMode = gm;
-                        Songs.Add(song);
+                        playlistSong.GameMode = gm;
+                        Songs.Add(playlistSong);
                     }
                     else
-                    {
                         CLog.LogError("Can't find song '" + title + "' from '" + artist + "' in playlist file: " + PlaylistFile);
-                    }
                 }
             }
             else
-            {
                 CLog.LogError("Can't find PlaylistName in Playlist File: " + PlaylistFile);
-            }
         }
 
-        public void AddSong(int SongID)
+        public void AddSong(int songID)
         {
-            CPlaylistSong song = new CPlaylistSong();
-            song.SongID = SongID;
-            if (CSongs.GetSong(SongID).IsDuet)
-                song.GameMode = EGameMode.TR_GAMEMODE_DUET;
-            else
-                song.GameMode = EGameMode.TR_GAMEMODE_NORMAL;
+            CPlaylistSong song = new CPlaylistSong {SongID = songID, GameMode = CSongs.GetSong(songID).IsDuet ? EGameMode.TR_GAMEMODE_DUET : EGameMode.TR_GAMEMODE_NORMAL};
 
-            Songs.Add(song);            
+            Songs.Add(song);
         }
 
-        public void AddSong(int SongID, EGameMode gm)
+        public void AddSong(int songID, EGameMode gm)
         {
-            CPlaylistSong song = new CPlaylistSong();
-            song.SongID = SongID;
-            song.GameMode = gm;
+            CPlaylistSong song = new CPlaylistSong {SongID = songID, GameMode = gm};
 
-            Songs.Add(song);   
+            Songs.Add(song);
         }
 
-        public void DeleteSong(int SongNr)
+        public void DeleteSong(int songNr)
         {
-            Songs.RemoveAt(SongNr);
+            Songs.RemoveAt(songNr);
         }
 
-        public void SongUp(int SongNr)
+        public void SongUp(int songNr)
         {
-            if (SongNr < Songs.Count - 1 && SongNr > 0)
-            {
-                Songs.Reverse(SongNr - 1, 2);
-            }
+            if (songNr < Songs.Count - 1 && songNr > 0)
+                Songs.Reverse(songNr - 1, 2);
         }
 
-        public void SongDown(int SongNr)
+        public void SongDown(int songNr)
         {
-            if (SongNr < Songs.Count - 1 && SongNr >= 0)
-            {
-                Songs.Reverse(SongNr, 2);
-            }
+            if (songNr < Songs.Count - 1 && songNr >= 0)
+                Songs.Reverse(songNr, 2);
         }
 
-        public void SongMove(int SourceNr, int DestNr)
+        public void SongMove(int sourceNr, int destNr)
         {
-            if (SourceNr < 0 || DestNr < 0 || SourceNr == DestNr || SourceNr > Songs.Count - 1 || DestNr > Songs.Count - 1)
+            if (sourceNr < 0 || destNr < 0 || sourceNr == destNr || sourceNr > Songs.Count - 1 || destNr > Songs.Count - 1)
                 return;
 
-            CPlaylistSong ps = new CPlaylistSong(Songs[SourceNr]);
-            Songs.RemoveAt(SourceNr);
-            Songs.Insert(DestNr, ps);
+            CPlaylistSong ps = new CPlaylistSong(Songs[sourceNr]);
+            Songs.RemoveAt(sourceNr);
+            Songs.Insert(destNr, ps);
         }
 
-        public void SongInsert(int DestNr, int SongID, EGameMode gm)
+        public void SongInsert(int destNr, int songID, EGameMode gm)
         {
-            if (DestNr < 0 || DestNr > Songs.Count - 1)
+            if (destNr < 0 || destNr > Songs.Count - 1)
                 return;
 
-            CPlaylistSong ps = new CPlaylistSong(SongID, gm);
-            Songs.Insert(DestNr, ps);
+            CPlaylistSong ps = new CPlaylistSong(songID, gm);
+            Songs.Insert(destNr, ps);
         }
     }
 }

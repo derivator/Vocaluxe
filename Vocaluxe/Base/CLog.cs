@@ -1,87 +1,107 @@
-﻿using System;
-using System.Collections.Generic;
+﻿#region license
+// /*
+//     This file is part of Vocaluxe.
+// 
+//     Vocaluxe is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+// 
+//     Vocaluxe is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+// 
+//     You should have received a copy of the GNU General Public License
+//     along with Vocaluxe. If not, see <http://www.gnu.org/licenses/>.
+//  */
+#endregion
+
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Windows.Forms;
 
 namespace Vocaluxe.Base
 {
-    class Log
+    class CLogFile : IDisposable
     {
-        private string _LogFileName;
-        private string _LogName;
+        private readonly string _LogFileName;
+        private readonly string _LogName;
         private StreamWriter _LogFile;
 
-        public Log(string FileName, string LogName)
+        public CLogFile(string fileName, string logName)
         {
-            _LogName = LogName;
-            _LogFileName = FileName;
+            _LogName = logName;
+            _LogFileName = fileName;
+        }
+
+        private void _Open()
+        {
+            _LogFile = new StreamWriter(Path.Combine(Environment.CurrentDirectory, _LogFileName), false, Encoding.UTF8);
+
+            _LogFile.WriteLine(_LogName + " " + CSettings.GetFullVersionText() + " " + DateTime.Now);
+            _LogFile.WriteLine("----------------------------------------");
+            _LogFile.WriteLine();
         }
 
         public void Close()
         {
-            if (_LogFile != null)
-            {
-                try
-                {
-                    _LogFile.Flush();
-                    _LogFile.Close();
-                }
-                catch (Exception)
-                {
-                }
-            }
-        }
-
-        public void Add(string Text)
-        {
             if (_LogFile == null)
-                Open();
-
+                return;
             try
             {
-                _LogFile.WriteLine(Text);
                 _LogFile.Flush();
+                _LogFile.Close();
             }
-            catch (Exception)
-            {
-            }            
+            catch (Exception) {}
         }
 
-        private void Open()
+        public void Add(string text)
         {
-            _LogFile = new StreamWriter(Path.Combine(Environment.CurrentDirectory, _LogFileName), false, Encoding.UTF8);
+            if (_LogFile == null)
+                _Open();
 
-            _LogFile.WriteLine(_LogName + " " + CSettings.GetFullVersionText() + " " + DateTime.Now.ToString());
-            _LogFile.WriteLine("----------------------------------------");
-            _LogFile.WriteLine();
+            // ReSharper disable PossibleNullReferenceException
+            _LogFile.WriteLine(text);
+            // ReSharper restore PossibleNullReferenceException
+            _LogFile.Flush();
+        }
+
+        public void Dispose()
+        {
+            if (_LogFile != null)
+            {
+                _LogFile.Dispose();
+                _LogFile = null;
+            }
+            GC.SuppressFinalize(this);
         }
     }
 
     static class CLog
     {
-        private const int MAXBenchmarks = 10;
+        private const int _MaxBenchmarks = 10;
 
-        private static Log _ErrorLog;
-        private static Log _PerformanceLog;
-        private static Log _BenchmarkLog;
+        private static CLogFile _ErrorLog;
+        private static CLogFile _PerformanceLog;
+        private static CLogFile _BenchmarkLog;
 
         private static int _NumErrors;
         private static Stopwatch[] _BenchmarkTimer;
-        private static double nanosecPerTick = (1000.0 * 1000.0 * 1000.0) / Stopwatch.Frequency;
-        
+        private static readonly double _NanosecPerTick = (1000.0 * 1000.0 * 1000.0) / Stopwatch.Frequency;
+
         public static void Init()
         {
-            _ErrorLog = new Log(CSettings.sFileErrorLog, "ErrorLog");
-            _PerformanceLog = new Log(CSettings.sFilePerformanceLog, "PerformanceLog");
-            _BenchmarkLog = new Log(CSettings.sFileBenchmarkLog, "BenchmarkLog");
+            _ErrorLog = new CLogFile(CSettings.FileErrorLog, "ErrorLog");
+            _PerformanceLog = new CLogFile(CSettings.FilePerformanceLog, "PerformanceLog");
+            _BenchmarkLog = new CLogFile(CSettings.FileBenchmarkLog, "BenchmarkLog");
 
             _NumErrors = 0;
-            _BenchmarkTimer = new Stopwatch[MAXBenchmarks];
+            _BenchmarkTimer = new Stopwatch[_MaxBenchmarks];
             for (int i = 0; i < _BenchmarkTimer.Length; i++)
-            {
                 _BenchmarkTimer[i] = new Stopwatch();
-            }
         }
 
         public static void CloseAll()
@@ -92,61 +112,62 @@ namespace Vocaluxe.Base
         }
 
         #region LogError
-        public static void LogError(string ErrorText)
+        public static void LogError(string errorText, bool show = false, bool exit = false, Exception e = null)
         {
             _NumErrors++;
-
-            _ErrorLog.Add(_NumErrors.ToString() + ") " + ErrorText);
+            if (show)
+                MessageBox.Show(errorText, CSettings.ProgramName, MessageBoxButtons.OK, MessageBoxIcon.Error);
+            if (e != null)
+                errorText += ": " + e;
+            _ErrorLog.Add(_NumErrors + ") " + errorText + "\r\n");
             _ErrorLog.Add(String.Empty);
+            if (exit)
+                Environment.Exit(Environment.ExitCode);
         }
         #endregion LogError
 
         #region LogPerformance
-        public static void LogPerformance(string Text)
+        public static void LogPerformance(string text)
         {
-            _PerformanceLog.Add(Text);
+            _PerformanceLog.Add(text);
             _PerformanceLog.Add("-------------------------------");
         }
         #endregion LogPerformance
 
         #region LogBenchmark
-        public static void StartBenchmark(int BenchmarkNr, string Text)
+        public static void StartBenchmark(int benchmarkNr, string text)
         {
-            if (BenchmarkNr >= 0 && BenchmarkNr < MAXBenchmarks)
+            if (benchmarkNr >= 0 && benchmarkNr < _MaxBenchmarks)
             {
-                _BenchmarkTimer[BenchmarkNr].Stop();
-                _BenchmarkTimer[BenchmarkNr].Reset();
+                _BenchmarkTimer[benchmarkNr].Stop();
+                _BenchmarkTimer[benchmarkNr].Reset();
 
                 string space = String.Empty;
-                for (int i = 0; i < BenchmarkNr; i++)
-			    {
-			        space += "  ";
-			    }
-                _BenchmarkLog.Add(space + "Start " + Text);
+                for (int i = 0; i < benchmarkNr; i++)
+                    space += "  ";
+                _BenchmarkLog.Add(space + "Start " + text);
 
-                _BenchmarkTimer[BenchmarkNr].Start();
+                _BenchmarkTimer[benchmarkNr].Start();
             }
         }
 
-        public static void StopBenchmark(int BenchmarkNr, string Text)
+        public static void StopBenchmark(int benchmarkNr, string text)
         {
-            if (BenchmarkNr >= 0 && BenchmarkNr < MAXBenchmarks)
+            if (benchmarkNr >= 0 && benchmarkNr < _MaxBenchmarks)
             {
-                _BenchmarkTimer[BenchmarkNr].Stop();
+                _BenchmarkTimer[benchmarkNr].Stop();
 
                 string space = String.Empty;
-                for (int i = 0; i < BenchmarkNr; i++)
-                {
+                for (int i = 0; i < benchmarkNr; i++)
                     space += "  ";
-                }
 
                 float ms;
-                if (Stopwatch.IsHighResolution && nanosecPerTick != 0.0)
-                    ms = (float)((nanosecPerTick * _BenchmarkTimer[BenchmarkNr].ElapsedTicks) / (1000.0 * 1000.0));
+                if (Stopwatch.IsHighResolution && _NanosecPerTick > 0)
+                    ms = (float)((_NanosecPerTick * _BenchmarkTimer[benchmarkNr].ElapsedTicks) / (1000.0 * 1000.0));
                 else
-                    ms = (float)_BenchmarkTimer[BenchmarkNr].ElapsedMilliseconds;
+                    ms = _BenchmarkTimer[benchmarkNr].ElapsedMilliseconds;
 
-                _BenchmarkLog.Add(space + "Stop " + Text + ", Elapsed Time: " + ms.ToString("0.000") + "ms");
+                _BenchmarkLog.Add(space + "Stop " + text + ", Elapsed Time: " + ms.ToString("0.000") + "ms");
                 _BenchmarkLog.Add(String.Empty);
             }
         }

@@ -1,38 +1,47 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿#region license
+// /*
+//     This file is part of Vocaluxe.
+// 
+//     Vocaluxe is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+// 
+//     Vocaluxe is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+// 
+//     You should have received a copy of the GNU General Public License
+//     along with Vocaluxe. If not, see <http://www.gnu.org/licenses/>.
+//  */
+#endregion
 
-using Vocaluxe.PartyModes;
+using System;
+using VocaluxeLib.PartyModes;
 
-namespace Vocaluxe.Menu
+namespace VocaluxeLib.Menu
 {
     public abstract class CMenuParty : CMenu
     {
         protected IPartyMode _PartyMode;
 
-        public CMenuParty()
+        protected CMenuParty()
         {
             _PartyMode = new CPartyModeNone();
         }
 
-        public void SetPartyModeID(int PartyModeID)
+        public void SetPartyModeID(int partyModeID)
         {
-            _PartyModeID = PartyModeID;
+            _PartyModeID = partyModeID;
         }
 
-        public int GetPartyModeID()
+        public void AssignPartyMode(IPartyMode partyMode)
         {
-            return _PartyModeID;
+            _PartyMode = partyMode;
         }
 
-        public void AssingPartyMode(IPartyMode PartyMode)
-        {
-            _PartyMode = PartyMode;
-        }
-
-        public virtual void DataToScreen(Object Data)
-        {
-        }
+        public virtual void DataToScreen(Object data) {}
 
         /*
         public sealed override void LoadTheme()
@@ -51,6 +60,5 @@ namespace Vocaluxe.Menu
         {
         }
         */
-        
     }
 }

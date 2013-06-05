@@ -1,45 +1,62 @@
-﻿using System;
-using System.Drawing;
-using System.Collections.Generic;
-using System.Text;
-using System.Xml;
+﻿#region license
+// /*
+//     This file is part of Vocaluxe.
+// 
+//     Vocaluxe is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+// 
+//     Vocaluxe is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+// 
+//     You should have received a copy of the GNU General Public License
+//     along with Vocaluxe. If not, see <http://www.gnu.org/licenses/>.
+//  */
+#endregion
 
-namespace Vocaluxe.Menu
+using System;
+using System.Xml;
+using VocaluxeLib.Draw;
+
+namespace VocaluxeLib.Menu
 {
     struct SThemeButton
     {
         public string Name;
 
         public string ColorName;
-        public string SColorName;
+        public string SelColorName;
 
         public string TextureName;
-        public string STextureName;
+        public string SelTextureName;
     }
 
     public class CButton : IMenuElement
     {
         private SThemeButton _Theme;
         private bool _ThemeLoaded;
-        private int _PartyModeID;
+        private readonly int _PartyModeID;
 
-        public STexture Texture;
-        public STexture STexture;
+        public CTexture Texture;
+        public CTexture SelTexture;
         public SRectF Rect;
         public SColorF Color;
-        public SColorF SColor;
+        public SColorF SelColor;
 
-        public bool SelText;
-        public CText Text;
-        public CText SText;
-        
-        public bool Reflection;
-        public float ReflectionSpace;
-        public float ReflectionHeight;
+        private bool _IsSelText;
+        public readonly CText Text;
+        private readonly CText _SelText;
 
-        public bool SReflection;
-        public float SReflectionSpace;
-        public float SReflectionHeight;
+        private bool _Reflection;
+        private float _ReflectionSpace;
+        private float _ReflectionHeight;
+
+        private bool _SelReflection;
+        private float _SelReflectionSpace;
+        private float _SelReflectionHeight;
 
         public bool Pressed;
 
@@ -49,7 +66,7 @@ namespace Vocaluxe.Menu
             set
             {
                 Text.EditMode = value;
-                SText.EditMode = value;
+                _SelText.EditMode = value;
             }
         }
 
@@ -63,92 +80,71 @@ namespace Vocaluxe.Menu
                 Text.Selected = value;
             }
         }
-        public bool Visible;
-        public bool Enabled;
+        public bool Visible = true;
+        public bool Enabled = true;
 
         public string GetThemeName()
         {
             return _Theme.Name;
         }
 
-        public CButton(int PartyModeID)
+        public CButton(int partyModeID)
         {
-            _PartyModeID = PartyModeID;
-            _Theme = new SThemeButton();
-            Rect = new SRectF();
-            Color = new SColorF();
-            SColor = new SColorF();
-            Texture = new STexture(-1);
-            STexture = new STexture(-1);
-
-            SelText = false;
+            _PartyModeID = partyModeID;
             Text = new CText(_PartyModeID);
-            SText = new CText(_PartyModeID);
+            _SelText = new CText(_PartyModeID);
             Selected = false;
-            Visible = true;
             EditMode = false;
-            Enabled = true;
-
-            Reflection = false;
-            ReflectionSpace = 0f;
-            ReflectionHeight = 0f;
-
-            SReflection = false;
-            SReflectionSpace = 0f;
-            SReflectionHeight = 0f;
         }
 
         public CButton(CButton button)
         {
             _PartyModeID = button._PartyModeID;
-            _Theme = new SThemeButton();
-            _Theme.ColorName = button._Theme.ColorName;
-            _Theme.SColorName = button._Theme.SColorName;
-            _Theme.TextureName = button._Theme.TextureName;
-            _Theme.STextureName = button._Theme.STextureName;
+            _Theme = new SThemeButton
+                {
+                    ColorName = button._Theme.ColorName,
+                    SelColorName = button._Theme.SelColorName,
+                    TextureName = button._Theme.TextureName,
+                    SelTextureName = button._Theme.SelTextureName
+                };
 
             Rect = new SRectF(button.Rect);
             Color = new SColorF(button.Color);
-            SColor = new SColorF(button.Color);
+            SelColor = new SColorF(button.Color);
             Texture = button.Texture;
-            STexture = button.STexture;
+            SelTexture = button.SelTexture;
 
-            SelText = false;
             Text = new CText(button.Text);
-            SText = new CText(button.SText);
+            _SelText = new CText(button._SelText);
             Selected = false;
-            Visible = true;
             EditMode = false;
-            _ThemeLoaded = false;
             Enabled = button.Enabled;
 
-            Reflection = button.Reflection;
-            ReflectionHeight = button.ReflectionHeight;
-            ReflectionSpace = button.ReflectionSpace;
+            _Reflection = button._Reflection;
+            _ReflectionHeight = button._ReflectionHeight;
+            _ReflectionSpace = button._ReflectionSpace;
 
-            SReflection = button.SReflection;
-            SReflectionHeight = button.SReflectionHeight;
-            SReflectionSpace = button.SReflectionSpace;
+            _SelReflection = button._SelReflection;
+            _SelReflectionHeight = button._SelReflectionHeight;
+            _SelReflectionSpace = button._SelReflectionSpace;
         }
 
-        public bool LoadTheme(string XmlPath, string ElementName, CXMLReader xmlReader, int SkinIndex)
+        public bool LoadTheme(string xmlPath, string elementName, CXMLReader xmlReader, int skinIndex)
         {
-            string item = XmlPath + "/" + ElementName;
+            string item = xmlPath + "/" + elementName;
             _ThemeLoaded = true;
 
-            _ThemeLoaded &= xmlReader.GetValue(item + "/Skin", ref _Theme.TextureName, String.Empty);
-            _ThemeLoaded &= xmlReader.GetValue(item + "/SkinSelected", ref _Theme.STextureName, String.Empty);
-            
+            _ThemeLoaded &= xmlReader.GetValue(item + "/Skin", out _Theme.TextureName, String.Empty);
+            _ThemeLoaded &= xmlReader.GetValue(item + "/SkinSelected", out _Theme.SelTextureName, String.Empty);
+
             _ThemeLoaded &= xmlReader.TryGetFloatValue(item + "/X", ref Rect.X);
             _ThemeLoaded &= xmlReader.TryGetFloatValue(item + "/Y", ref Rect.Y);
             _ThemeLoaded &= xmlReader.TryGetFloatValue(item + "/Z", ref Rect.Z);
             _ThemeLoaded &= xmlReader.TryGetFloatValue(item + "/W", ref Rect.W);
             _ThemeLoaded &= xmlReader.TryGetFloatValue(item + "/H", ref Rect.H);
 
-            if (xmlReader.GetValue(item + "/Color", ref _Theme.ColorName, String.Empty))
-            {
-                _ThemeLoaded &= CBase.Theme.GetColor(_Theme.ColorName, SkinIndex, ref Color);
-            }
+            if (xmlReader.GetValue(item + "/Color", out _Theme.ColorName, String.Empty))
+                _ThemeLoaded &= CBase.Theme.GetColor(_Theme.ColorName, skinIndex, out Color);
             else
             {
                 _ThemeLoaded &= xmlReader.TryGetFloatValue(item + "/R", ref Color.R);
@@ -157,50 +153,48 @@ namespace Vocaluxe.Menu
                 _ThemeLoaded &= xmlReader.TryGetFloatValue(item + "/A", ref Color.A);
             }
 
-            if (xmlReader.GetValue(item + "/SColor", ref _Theme.SColorName, String.Empty))
-            {
-                _ThemeLoaded &= CBase.Theme.GetColor(_Theme.SColorName, SkinIndex, ref SColor);
-            }
+            if (xmlReader.GetValue(item + "/SColor", out _Theme.SelColorName, String.Empty))
+                _ThemeLoaded &= CBase.Theme.GetColor(_Theme.SelColorName, skinIndex, out SelColor);
             else
             {
-                _ThemeLoaded &= xmlReader.TryGetFloatValue(item + "/SR", ref SColor.R);
-                _ThemeLoaded &= xmlReader.TryGetFloatValue(item + "/SG", ref SColor.G);
-                _ThemeLoaded &= xmlReader.TryGetFloatValue(item + "/SB", ref SColor.B);
-                _ThemeLoaded &= xmlReader.TryGetFloatValue(item + "/SA", ref SColor.A);
+                _ThemeLoaded &= xmlReader.TryGetFloatValue(item + "/SR", ref SelColor.R);
+                _ThemeLoaded &= xmlReader.TryGetFloatValue(item + "/SG", ref SelColor.G);
+                _ThemeLoaded &= xmlReader.TryGetFloatValue(item + "/SB", ref SelColor.B);
+                _ThemeLoaded &= xmlReader.TryGetFloatValue(item + "/SA", ref SelColor.A);
             }
 
-            _ThemeLoaded &= Text.LoadTheme(item, "Text", xmlReader, SkinIndex, true);
+            _ThemeLoaded &= Text.LoadTheme(item, "Text", xmlReader, skinIndex, true);
             Text.Z = Rect.Z;
             if (xmlReader.ItemExists(item + "/SText"))
             {
-                SelText = true;
-                _ThemeLoaded &= SText.LoadTheme(item, "SText", xmlReader, SkinIndex, true);
-                SText.Z = Rect.Z;
+                _IsSelText = true;
+                _ThemeLoaded &= _SelText.LoadTheme(item, "SText", xmlReader, skinIndex, true);
+                _SelText.Z = Rect.Z;
             }
-            
-            
+
+
             //Reflections
             if (xmlReader.ItemExists(item + "/Reflection"))
             {
-                Reflection = true;
-                _ThemeLoaded &= xmlReader.TryGetFloatValue(item + "/Reflection/Space", ref ReflectionSpace);
-                _ThemeLoaded &= xmlReader.TryGetFloatValue(item + "/Reflection/Height", ref ReflectionHeight);
+                _Reflection = true;
+                _ThemeLoaded &= xmlReader.TryGetFloatValue(item + "/Reflection/Space", ref _ReflectionSpace);
+                _ThemeLoaded &= xmlReader.TryGetFloatValue(item + "/Reflection/Height", ref _ReflectionHeight);
             }
             else
-                Reflection = false;
+                _Reflection = false;
 
             if (xmlReader.ItemExists(item + "/SReflection"))
             {
-                SReflection = true;
-                _ThemeLoaded &= xmlReader.TryGetFloatValue(item + "/SReflection/Space", ref SReflectionSpace);
-                _ThemeLoaded &= xmlReader.TryGetFloatValue(item + "/SReflection/Height", ref SReflectionHeight);
+                _SelReflection = true;
+                _ThemeLoaded &= xmlReader.TryGetFloatValue(item + "/SReflection/Space", ref _SelReflectionSpace);
+                _ThemeLoaded &= xmlReader.TryGetFloatValue(item + "/SReflection/Height", ref _SelReflectionHeight);
             }
             else
-                SReflection = false;
+                _SelReflection = false;
 
             if (_ThemeLoaded)
             {
-                _Theme.Name = ElementName;
+                _Theme.Name = elementName;
                 LoadTextures();
             }
             return _ThemeLoaded;
@@ -216,7 +210,7 @@ namespace Vocaluxe.Menu
                 writer.WriteElementString("Skin", _Theme.TextureName);
 
                 writer.WriteComment("<SkinSelected>: Texture name for selected button");
-                writer.WriteElementString("SkinSelected", _Theme.STextureName);
+                writer.WriteElementString("SkinSelected", _Theme.SelTextureName);
 
                 writer.WriteComment("<X>, <Y>, <Z>, <W>, <H>: Button position, width and height");
                 writer.WriteElementString("X", Rect.X.ToString("#0"));
@@ -227,10 +221,8 @@ namespace Vocaluxe.Menu
 
                 writer.WriteComment("<Color>: Button color from ColorScheme (high priority)");
                 writer.WriteComment("or <R>, <G>, <B>, <A> (lower priority)");
-                if (_Theme.ColorName != String.Empty)
-                {
+                if (!String.IsNullOrEmpty(_Theme.ColorName))
                     writer.WriteElementString("Color", _Theme.ColorName);
-                }
                 else
                 {
                     writer.WriteElementString("R", Color.R.ToString("#0.00"));
@@ -241,41 +233,39 @@ namespace Vocaluxe.Menu
 
                 writer.WriteComment("<SColor>: Selected button color from ColorScheme (high priority)");
                 writer.WriteComment("or <SR>, <SG>, <SB>, <SA> (lower priority)");
-                if (_Theme.SColorName != String.Empty)
-                {
-                    writer.WriteElementString("SColor", _Theme.SColorName);
-                }
+                if (!String.IsNullOrEmpty(_Theme.SelColorName))
+                    writer.WriteElementString("SColor", _Theme.SelColorName);
                 else
                 {
-                    writer.WriteElementString("SR", SColor.R.ToString("#0.00"));
-                    writer.WriteElementString("SG", SColor.G.ToString("#0.00"));
-                    writer.WriteElementString("SB", SColor.B.ToString("#0.00"));
-                    writer.WriteElementString("SA", SColor.A.ToString("#0.00"));
+                    writer.WriteElementString("SR", SelColor.R.ToString("#0.00"));
+                    writer.WriteElementString("SG", SelColor.G.ToString("#0.00"));
+                    writer.WriteElementString("SB", SelColor.B.ToString("#0.00"));
+                    writer.WriteElementString("SA", SelColor.A.ToString("#0.00"));
                 }
 
                 Text.SaveTheme(writer);
-                if (SelText)
-                    SText.SaveTheme(writer);
+                if (_IsSelText)
+                    _SelText.SaveTheme(writer);
 
                 writer.WriteComment("<Reflection> If exists:");
                 writer.WriteComment("   <Space>: Reflection Space");
                 writer.WriteComment("   <Height>: Reflection Height");
-                if (Reflection)
+                if (_Reflection)
                 {
                     writer.WriteStartElement("Reflection");
-                    writer.WriteElementString("Space", ReflectionSpace.ToString("#0"));
-                    writer.WriteElementString("Height", ReflectionHeight.ToString("#0"));
+                    writer.WriteElementString("Space", _ReflectionSpace.ToString("#0"));
+                    writer.WriteElementString("Height", _ReflectionHeight.ToString("#0"));
                     writer.WriteEndElement();
                 }
 
                 writer.WriteComment("<SReflection> If exists:");
                 writer.WriteComment("   <Space>: Reflection Space of selected button");
                 writer.WriteComment("   <Height>: Reflection Height of selected button");
-                if (SReflection)
+                if (_SelReflection)
                 {
                     writer.WriteStartElement("SReflection");
-                    writer.WriteElementString("Space", ReflectionSpace.ToString("#0"));
-                    writer.WriteElementString("Height", ReflectionHeight.ToString("#0"));
+                    writer.WriteElementString("Space", _ReflectionSpace.ToString("#0"));
+                    writer.WriteElementString("Height", _ReflectionHeight.ToString("#0"));
                     writer.WriteEndElement();
                 }
 
@@ -286,73 +276,54 @@ namespace Vocaluxe.Menu
             return false;
         }
 
-        public void Draw()
+        public void Draw(bool forceDraw = false)
         {
-            Draw(false);
-        }
-
-        public void ForceDraw()
-        {
-            Draw(true);
-        }
-
-        public void Draw(bool ForceDraw)
-        {
-            if (!Visible && CBase.Settings.GetGameState() != EGameState.EditTheme && !ForceDraw)
+            if (!Visible && CBase.Settings.GetGameState() != EGameState.EditTheme && !forceDraw)
                 return;
 
-            STexture texture = new STexture(-1);
+            CTexture texture;
 
             if (!Selected && !Pressed || !Enabled)
             {
-                if (Texture.index != -1)
-                    texture = Texture;
-                else
-                    texture = CBase.Theme.GetSkinTexture(_Theme.TextureName, _PartyModeID);
+                texture = Texture ?? CBase.Theme.GetSkinTexture(_Theme.TextureName, _PartyModeID);
 
                 CBase.Drawing.DrawTexture(texture, Rect, Color);
-                
-                if (Reflection)
+
+                if (_Reflection)
                 {
-                    CBase.Drawing.DrawTextureReflection(texture, Rect, Color, Rect, ReflectionSpace, ReflectionHeight);
-                    Text.DrawRelative(Rect.X, Rect.Y, ReflectionSpace, ReflectionHeight, Rect.H);
+                    CBase.Drawing.DrawTextureReflection(texture, Rect, Color, Rect, _ReflectionSpace, _ReflectionHeight);
+                    Text.DrawRelative(Rect.X, Rect.Y, _ReflectionHeight, _ReflectionSpace, Rect.H);
                 }
                 else
                     Text.DrawRelative(Rect.X, Rect.Y);
             }
-            else if(!SelText)
+            else if (!_IsSelText)
             {
-                if (Texture.index != -1)
-                    texture = Texture;
-                else
-                    texture = CBase.Theme.GetSkinTexture(_Theme.STextureName, _PartyModeID);
+                texture = Texture ?? CBase.Theme.GetSkinTexture(_Theme.SelTextureName, _PartyModeID);
 
-                CBase.Drawing.DrawTexture(texture, Rect, SColor);
+                CBase.Drawing.DrawTexture(texture, Rect, SelColor);
 
-                if (Reflection)
+                if (_Reflection)
                 {
-                    CBase.Drawing.DrawTextureReflection(texture, Rect, SColor, Rect, ReflectionSpace, ReflectionHeight);
-                    Text.DrawRelative(Rect.X, Rect.Y, ReflectionSpace, ReflectionHeight, Rect.H);
+                    CBase.Drawing.DrawTextureReflection(texture, Rect, SelColor, Rect, _ReflectionSpace, _ReflectionHeight);
+                    Text.DrawRelative(Rect.X, Rect.Y, _ReflectionHeight, _ReflectionSpace, Rect.H);
                 }
                 else
                     Text.DrawRelative(Rect.X, Rect.Y);
             }
-            else if(SelText)
+            else if (_IsSelText)
             {
-                if (STexture.index != -1)
-                    texture = STexture;
-                else
-                    texture = CBase.Theme.GetSkinTexture(_Theme.STextureName, _PartyModeID);
+                texture = SelTexture ?? CBase.Theme.GetSkinTexture(_Theme.SelTextureName, _PartyModeID);
 
-                CBase.Drawing.DrawTexture(texture, Rect, SColor);
+                CBase.Drawing.DrawTexture(texture, Rect, SelColor);
 
-                if (Reflection)
+                if (_Reflection)
                 {
-                    CBase.Drawing.DrawTextureReflection(texture, Rect, SColor, Rect, ReflectionSpace, ReflectionHeight);
-                    SText.DrawRelative(Rect.X, Rect.Y, ReflectionSpace, ReflectionHeight, Rect.H);
+                    CBase.Drawing.DrawTextureReflection(texture, Rect, SelColor, Rect, _ReflectionSpace, _ReflectionHeight);
+                    _SelText.DrawRelative(Rect.X, Rect.Y, _ReflectionHeight, _ReflectionSpace, Rect.H);
                 }
                 else
-                    SText.DrawRelative(Rect.X, Rect.Y);
+                    _SelText.DrawRelative(Rect.X, Rect.Y);
             }
         }
 
@@ -370,17 +341,17 @@ namespace Vocaluxe.Menu
         {
             Text.LoadTextures();
 
-            if (_Theme.ColorName != String.Empty)
+            if (!String.IsNullOrEmpty(_Theme.ColorName))
                 Color = CBase.Theme.GetColor(_Theme.ColorName, _PartyModeID);
 
-            if (_Theme.SColorName != String.Empty)
-                SColor = CBase.Theme.GetColor(_Theme.SColorName, _PartyModeID);
+            if (!String.IsNullOrEmpty(_Theme.SelColorName))
+                SelColor = CBase.Theme.GetColor(_Theme.SelColorName, _PartyModeID);
         }
 
         public void ReloadTextures()
         {
             UnloadTextures();
-            LoadTextures();            
+            LoadTextures();
         }
 
         #region ThemeEdit

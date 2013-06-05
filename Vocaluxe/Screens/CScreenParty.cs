@@ -1,62 +1,68 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Windows.Forms;
+﻿#region license
+// /*
+//     This file is part of Vocaluxe.
+// 
+//     Vocaluxe is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+// 
+//     Vocaluxe is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+// 
+//     You should have received a copy of the GNU General Public License
+//     along with Vocaluxe. If not, see <http://www.gnu.org/licenses/>.
+//  */
+#endregion
 
+using System.Collections.Generic;
+using System.Windows.Forms;
 using Vocaluxe.Base;
-using Vocaluxe.Menu;
+using VocaluxeLib;
+using VocaluxeLib.Menu;
 
 namespace Vocaluxe.Screens
 {
     class CScreenParty : CMenu
     {
         // Version number for theme files. Increment it, if you've changed something on the theme files!
-        const int ScreenVersion = 1;
+        protected override int _ScreenVersion
+        {
+            get { return 1; }
+        }
 
-        const string TextDescription = "TextDescription";
-        const string TextTargetAudience = "TextTargetAudience";
-        const string TextNumTeams = "TextNumTeams";
-        const string TextNumPlayers = "TextNumPlayers";
-        const string TextAuthor = "TextAuthor";
-        const string TextVersion = "TextVersion";
-        const string TextError = "TextError";
-        const string ButtonStart = "ButtonStart";
-        const string ButtonExit = "ButtonExit";
-        const string SelectSlideModes = "SelectSlideModes";
+        private const string _TextDescription = "TextDescription";
+        private const string _TextTargetAudience = "TextTargetAudience";
+        private const string _TextNumTeams = "TextNumTeams";
+        private const string _TextNumPlayers = "TextNumPlayers";
+        private const string _TextAuthor = "TextAuthor";
+        private const string _TextVersion = "TextVersion";
+        private const string _TextError = "TextError";
+        private const string _ButtonStart = "ButtonStart";
+        private const string _ButtonExit = "ButtonExit";
+        private const string _SelectSlideModes = "SelectSlideModes";
 
         private List<SPartyModeInfos> _PartyModeInfos;
 
-        public CScreenParty()
-        {
-        }
-
-        protected override void Init()
+        public override void Init()
         {
             base.Init();
 
-            _ThemeName = "ScreenParty";
-            _ScreenVersion = ScreenVersion;
-            _ThemeTexts = new string[] { TextDescription, TextTargetAudience, TextNumTeams, TextNumPlayers, TextAuthor, TextVersion, TextError };
-            _ThemeButtons = new string[] { ButtonStart, ButtonExit };
-            _ThemeSelectSlides = new string[] { SelectSlideModes };
+            _ThemeTexts = new string[] {_TextDescription, _TextTargetAudience, _TextNumTeams, _TextNumPlayers, _TextAuthor, _TextVersion, _TextError};
+            _ThemeButtons = new string[] {_ButtonStart, _ButtonExit};
+            _ThemeSelectSlides = new string[] {_SelectSlideModes};
         }
 
-        public override void LoadTheme(string XmlPath)
+        public override bool HandleInput(SKeyEvent keyEvent)
         {
-            base.LoadTheme(XmlPath);
-        }
+            base.HandleInput(keyEvent);
 
-        public override bool HandleInput(KeyEvent KeyEvent)
-        {
-            base.HandleInput(KeyEvent);
-
-            if (KeyEvent.KeyPressed)
-            {
-                
-            }
+            if (keyEvent.KeyPressed) {}
             else
             {
-                switch (KeyEvent.Key)
+                switch (keyEvent.Key)
                 {
                     case Keys.Back:
                     case Keys.Escape:
@@ -64,44 +70,42 @@ namespace Vocaluxe.Screens
                         break;
 
                     case Keys.Enter:
-                        if (Buttons[htButtons(ButtonStart)].Selected)
-                            StartPartyMode();
+                        if (_Buttons[_ButtonStart].Selected)
+                            _StartPartyMode();
 
-                        if (Buttons[htButtons(ButtonExit)].Selected)
+                        if (_Buttons[_ButtonExit].Selected)
                             CGraphics.FadeTo(EScreens.ScreenMain);
                         break;
 
                     case Keys.Left:
                     case Keys.Right:
-                        if (SelectSlides[htSelectSlides(SelectSlideModes)].Selected)
-                            UpdateSelection();
+                        if (_SelectSlides[_SelectSlideModes].Selected)
+                            _UpdateSelection();
                         break;
                 }
-            }            
+            }
             return true;
         }
 
-        public override bool HandleMouse(MouseEvent MouseEvent)
+        public override bool HandleMouse(SMouseEvent mouseEvent)
         {
-            base.HandleMouse(MouseEvent);
+            base.HandleMouse(mouseEvent);
 
-            if (MouseEvent.LB && IsMouseOver(MouseEvent))
+            if (mouseEvent.LB && _IsMouseOver(mouseEvent))
             {
-                if (Buttons[htButtons(ButtonStart)].Selected)
-                    StartPartyMode();
+                if (_Buttons[_ButtonStart].Selected)
+                    _StartPartyMode();
 
-                if (Buttons[htButtons(ButtonExit)].Selected)
+                if (_Buttons[_ButtonExit].Selected)
                     CGraphics.FadeTo(EScreens.ScreenMain);
 
-                if (SelectSlides[htSelectSlides(SelectSlideModes)].Selected)
-                    UpdateSelection();
+                if (_SelectSlides[_SelectSlideModes].Selected)
+                    _UpdateSelection();
             }
 
-            if (MouseEvent.RB)
-            {
+            if (mouseEvent.RB)
                 CGraphics.FadeTo(EScreens.ScreenMain);
-            }
-            
+
             return true;
         }
 
@@ -111,15 +115,13 @@ namespace Vocaluxe.Screens
 
             _PartyModeInfos = CParty.GetPartyModeInfos();
 
-            SelectSlides[htSelectSlides(SelectSlideModes)].Clear();
+            _SelectSlides[_SelectSlideModes].Clear();
             foreach (SPartyModeInfos info in _PartyModeInfos)
-            {
-                SelectSlides[htSelectSlides(SelectSlideModes)].AddValue(info.Name, info.PartyModeID);
-            }
-            SelectSlides[htSelectSlides(SelectSlideModes)].Selection = 0;
-            UpdateSelection();
+                _SelectSlides[_SelectSlideModes].AddValue(info.Name, info.PartyModeID);
+            _SelectSlides[_SelectSlideModes].Selection = 0;
+            _UpdateSelection();
 
-            SetInteractionToSelectSlide(SelectSlides[htSelectSlides(SelectSlideModes)]);
+            _SetInteractionToSelectSlide(_SelectSlides[_SelectSlideModes]);
         }
 
         public override bool UpdateGame()
@@ -134,80 +136,80 @@ namespace Vocaluxe.Screens
             return true;
         }
 
-        public override void OnClose()
-        {
-            base.OnClose();
-        }
-
-        private void UpdateSelection()
+        private void _UpdateSelection()
         {
             if (_PartyModeInfos.Count == 0)
                 return;
 
-            int index = SelectSlides[htSelectSlides(SelectSlideModes)].Selection;
+            int index = _SelectSlides[_SelectSlideModes].Selection;
             if (index >= _PartyModeInfos.Count)
                 return;
 
             //Description    
-            Texts[htTexts(TextDescription)].Text = _PartyModeInfos[index].Description;
-            Texts[htTexts(TextDescription)].TranslationID = _PartyModeInfos[index].PartyModeID;
+            _Texts[_TextDescription].Text = _PartyModeInfos[index].Description;
+            _Texts[_TextDescription].TranslationID = _PartyModeInfos[index].PartyModeID;
 
             //TargetAudience
-            Texts[htTexts(TextTargetAudience)].TranslationID = _PartyModeInfos[index].PartyModeID;
-            Texts[htTexts(TextTargetAudience)].Text = _PartyModeInfos[index].TargetAudience;
+            _Texts[_TextTargetAudience].TranslationID = _PartyModeInfos[index].PartyModeID;
+            _Texts[_TextTargetAudience].Text = _PartyModeInfos[index].TargetAudience;
 
             //NumTeams
             if (_PartyModeInfos[index].MaxTeams == 0)
-                Texts[htTexts(TextNumTeams)].Text = "TR_SCREENPARTY_NOTEAMS";
+                _Texts[_TextNumTeams].Text = "TR_SCREENPARTY_NOTEAMS";
             else if (_PartyModeInfos[index].MaxTeams == _PartyModeInfos[index].MinTeams)
-                Texts[htTexts(TextNumTeams)].Text = _PartyModeInfos[index].MaxTeams.ToString();
+                _Texts[_TextNumTeams].Text = _PartyModeInfos[index].MaxTeams.ToString();
             else if (_PartyModeInfos[index].MaxTeams > _PartyModeInfos[index].MinTeams)
-                Texts[htTexts(TextNumTeams)].Text = _PartyModeInfos[index].MinTeams + " - " + _PartyModeInfos[index].MaxTeams;
+                _Texts[_TextNumTeams].Text = _PartyModeInfos[index].MinTeams + " - " + _PartyModeInfos[index].MaxTeams;
 
             //NumPlayers
             if (_PartyModeInfos[index].MaxPlayers == _PartyModeInfos[index].MinPlayers)
-                Texts[htTexts(TextNumPlayers)].Text = _PartyModeInfos[index].MaxTeams.ToString();
+                _Texts[_TextNumPlayers].Text = _PartyModeInfos[index].MaxTeams.ToString();
             else if (_PartyModeInfos[index].MaxPlayers > _PartyModeInfos[index].MinPlayers)
-                Texts[htTexts(TextNumPlayers)].Text = _PartyModeInfos[index].MinPlayers + " - " + _PartyModeInfos[index].MaxPlayers;
+                _Texts[_TextNumPlayers].Text = _PartyModeInfos[index].MinPlayers + " - " + _PartyModeInfos[index].MaxPlayers;
 
             //Author
-            Texts[htTexts(TextAuthor)].Text = _PartyModeInfos[index].Author;
-            Texts[htTexts(TextAuthor)].TranslationID = _PartyModeInfos[index].PartyModeID;
+            _Texts[_TextAuthor].Text = _PartyModeInfos[index].Author;
+            _Texts[_TextAuthor].TranslationID = _PartyModeInfos[index].PartyModeID;
 
             //Version
-            Texts[htTexts(TextVersion)].Text = _PartyModeInfos[index].VersionMajor + "." + _PartyModeInfos[index].VersionMinor;
-            Texts[htTexts(TextVersion)].TranslationID = _PartyModeInfos[index].PartyModeID;
+            _Texts[_TextVersion].Text = _PartyModeInfos[index].VersionMajor + "." + _PartyModeInfos[index].VersionMinor;
+            _Texts[_TextVersion].TranslationID = _PartyModeInfos[index].PartyModeID;
 
             if (!_PartyModeInfos[index].Playable)
             {
-                Buttons[htButtons(ButtonStart)].Visible = false;
-                Texts[htTexts(TextError)].Visible = true;
+                _Buttons[_ButtonStart].Visible = false;
+                _Texts[_TextError].Text = "TR_SCREENPARTY_ERROR";
+                _Texts[_TextError].Visible = true;
+            }
+            else if (CConfig.GetMaxNumMics() == 0)
+            {
+                _Buttons[_ButtonStart].Visible = false;
+                _Texts[_TextError].Text = "TR_SCREENPARTY_ERROR_MICS";
+                _Texts[_TextError].Visible = true;
             }
             else
             {
-                Buttons[htButtons(ButtonStart)].Visible = true;
-                Texts[htTexts(TextError)].Visible = false;
+                _Buttons[_ButtonStart].Visible = true;
+                _Texts[_TextError].Visible = false;
             }
         }
 
-        private void StartPartyMode()
+        private void _StartPartyMode()
         {
             if (_PartyModeInfos.Count == 0)
                 return;
 
-            int index = SelectSlides[htSelectSlides(SelectSlideModes)].Selection;
+            int index = _SelectSlides[_SelectSlideModes].Selection;
             if (index >= _PartyModeInfos.Count)
-                return;
-
-            if (CMain.Config.GetMaxNumMics() == 0)
-                return; //TODO: Add message!
-
-            if (_PartyModeInfos[index].Playable)
             {
-                CParty.SetPartyMode(_PartyModeInfos[index].PartyModeID);
-                CGraphics.FadeTo(EScreens.ScreenPartyDummy);
+                _Buttons[_ButtonStart].Visible = false;
+                _Texts[_TextError].Text = "TR_SCREENPARTY_ERROR";
+                _Texts[_TextError].Visible = true;
+                return;
             }
-            //TODO: else Message!
+
+            CParty.SetPartyMode(_PartyModeInfos[index].PartyModeID);
+            CGraphics.FadeTo(EScreens.ScreenPartyDummy);
         }
     }
 }

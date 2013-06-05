@@ -1,10 +1,27 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Text;
-using System.Xml;
+﻿#region license
+// /*
+//     This file is part of Vocaluxe.
+// 
+//     Vocaluxe is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+// 
+//     Vocaluxe is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+// 
+//     You should have received a copy of the GNU General Public License
+//     along with Vocaluxe. If not, see <http://www.gnu.org/licenses/>.
+//  */
+#endregion
 
-namespace Vocaluxe.Menu
+using System;
+using System.Xml;
+using VocaluxeLib.Draw;
+
+namespace VocaluxeLib.Menu
 {
     enum ESettingType
     {
@@ -21,9 +38,12 @@ namespace Vocaluxe.Menu
         public ESettingType Type;
     }
 
+    // ReSharper disable ClassNeverInstantiated.Global
+    //Instantiated by reflection
     public class CScreenSetting : IMenuElement
+        // ReSharper restore ClassNeverInstantiated.Global
     {
-        private int _PartyModeID;
+        private readonly int _PartyModeID;
 
         private SScreenSetting _Theme;
         private bool _ThemeLoaded;
@@ -33,32 +53,23 @@ namespace Vocaluxe.Menu
             return _Theme.Name;
         }
 
-        public CScreenSetting(int PartyModeID)
+        public CScreenSetting(int partyModeID)
         {
-            _PartyModeID = PartyModeID;
+            _PartyModeID = partyModeID;
             _Theme = new SScreenSetting();
             _ThemeLoaded = false;
         }
 
-        public CScreenSetting(CScreenSetting ts)
+        public bool LoadTheme(string xmlPath, string elementName, CXMLReader xmlReader, int skinIndex)
         {
-            _PartyModeID = ts._PartyModeID;
-            _Theme = ts._Theme;
-            _ThemeLoaded = ts._ThemeLoaded;
-        }
-
-        public bool LoadTheme(string XmlPath, string ElementName, CXMLReader xmlReader, int SkinIndex)
-        {
-            string item = XmlPath + "/" + ElementName;
+            string item = xmlPath + "/" + elementName;
             _ThemeLoaded = true;
 
-            _ThemeLoaded &= xmlReader.GetValue(item + "/Value", ref _Theme.Value, String.Empty);
-            _ThemeLoaded &= xmlReader.TryGetEnumValue<ESettingType>(item + "/Type", ref _Theme.Type);
+            _ThemeLoaded &= xmlReader.GetValue(item + "/Value", out _Theme.Value, String.Empty);
+            _ThemeLoaded &= xmlReader.TryGetEnumValue(item + "/Type", ref _Theme.Type);
 
             if (_ThemeLoaded)
-            {
-                _Theme.Name = ElementName;
-            }
+                _Theme.Name = elementName;
             return _ThemeLoaded;
         }
 
@@ -68,7 +79,7 @@ namespace Vocaluxe.Menu
             {
                 writer.WriteStartElement(_Theme.Name);
 
-                writer.WriteComment("<Type>: Type of theme-setting-value: "+ CHelper.ListStrings(Enum.GetNames(typeof(ESettingType))));
+                writer.WriteComment("<Type>: Type of theme-setting-value: " + CHelper.ListStrings(Enum.GetNames(typeof(ESettingType))));
                 writer.WriteElementString("Type", Enum.GetName(typeof(ESettingType), _Theme.Type));
                 writer.WriteComment("<Value>: Value of theme-setting");
                 writer.WriteElementString("Value", _Theme.Value);
@@ -83,39 +94,33 @@ namespace Vocaluxe.Menu
             switch (_Theme.Type)
             {
                 case ESettingType.Int:
-                    return GetIntValue(_Theme.Value);
+                    return _GetIntValue(_Theme.Value);
 
                 case ESettingType.String:
                     return _Theme.Value;
 
                 case ESettingType.Color:
-                    return GetColorValue(_Theme.Value);
+                    return _GetColorValue(_Theme.Value);
 
                 case ESettingType.Texture:
-                    return GetTextureValue(_Theme.Value);
+                    return _GetTextureValue(_Theme.Value);
             }
 
             return null;
         }
 
-        public void UnloadTextures()
-        {
-        }
+        public void UnloadTextures() {}
 
-        public void LoadTextures()
-        {
-        }
+        public void LoadTextures() {}
 
-        public void ReloadTextures()
-        {
-        }
+        public void ReloadTextures() {}
 
         #region Private
-        private int GetIntValue(string _string)
+        private int _GetIntValue(string value)
         {
             try
             {
-                return Convert.ToInt32(_string);
+                return Convert.ToInt32(value);
             }
             catch (Exception)
             {
@@ -123,25 +128,21 @@ namespace Vocaluxe.Menu
             }
         }
 
-        private STexture GetTextureValue(string _string)
+        private CTexture _GetTextureValue(string value)
         {
-            return CBase.Theme.GetSkinTexture(_string, _PartyModeID);
+            return CBase.Theme.GetSkinTexture(value, _PartyModeID);
         }
 
-        private SColorF GetColorValue(string _string)
+        private SColorF _GetColorValue(string value)
         {
-            return CBase.Theme.GetColor(_string, _PartyModeID);
+            return CBase.Theme.GetColor(value, _PartyModeID);
         }
         #endregion Private
 
         #region ThemeEdit
-        public void MoveElement(int stepX, int stepY)
-        {
-        }
+        public void MoveElement(int stepX, int stepY) {}
 
-        public void ResizeElement(int stepW, int stepH)
-        {
-        }
+        public void ResizeElement(int stepW, int stepH) {}
         #endregion ThemeEdit
     }
 }

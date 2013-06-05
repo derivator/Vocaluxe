@@ -1,10 +1,25 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿#region license
+// /*
+//     This file is part of Vocaluxe.
+// 
+//     Vocaluxe is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+// 
+//     Vocaluxe is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+// 
+//     You should have received a copy of the GNU General Public License
+//     along with Vocaluxe. If not, see <http://www.gnu.org/licenses/>.
+//  */
+#endregion
 
 namespace Vocaluxe.Lib.Sound.Decoder
 {
-    struct FormatInfo
+    struct SFormatInfo
     {
         public int ChannelCount;
         public int SamplesPerSecond;
@@ -16,15 +31,14 @@ namespace Vocaluxe.Lib.Sound.Decoder
         void Init();
         void Close();
 
-        void Open(string FileName);
-        void Open(string FileName, bool Loop);
-        FormatInfo GetFormatInfo();
+        void Open(string fileName);
+        SFormatInfo GetFormatInfo();
 
         float GetLength();
 
-        void SetPosition(float Time);
+        void SetPosition(float time);
         float GetPosition();
 
-        void Decode(out byte[] Buffer, out float TimeStamp);
+        void Decode(out byte[] buffer, out float timeStamp);
     }
 }

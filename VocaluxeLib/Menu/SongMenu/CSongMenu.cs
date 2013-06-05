@@ -1,30 +1,38 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿#region license
+// /*
+//     This file is part of Vocaluxe.
+// 
+//     Vocaluxe is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+// 
+//     Vocaluxe is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+// 
+//     You should have received a copy of the GNU General Public License
+//     along with Vocaluxe. If not, see <http://www.gnu.org/licenses/>.
+//  */
+#endregion
+
 using System.Xml;
+using VocaluxeLib.PartyModes;
 
-using Vocaluxe.Menu;
-using Vocaluxe.PartyModes;
-
-namespace Vocaluxe.Menu.SongMenu
+namespace VocaluxeLib.Menu.SongMenu
 {
     public class CSongMenu : ISongMenu
     {
-        private int _PartyModeID;
+        private readonly int _PartyModeID;
 
         private ISongMenu _SongMenu;
         private ESongMenu _Type;
 
-        public CSongMenu(int PartyModeID)
+        public CSongMenu(int partyModeID)
         {
-            _PartyModeID = PartyModeID;
-            CreateSongMenu();
-        }
-
-        public void UpdateSongMenuType()
-        {
-            if (_Type != CBase.Config.GetSongMenuType())
-                CreateSongMenu();
+            _PartyModeID = partyModeID;
+            _CreateSongMenu();
         }
 
         public bool Selected
@@ -45,9 +53,9 @@ namespace Vocaluxe.Menu.SongMenu
         }
 
         #region ISongMenu
-        public void Update(ScreenSongOptions SongOptions)
+        public void Update(SScreenSongOptions songOptions)
         {
-            _SongMenu.Update(SongOptions);
+            _SongMenu.Update(songOptions);
         }
 
         public void OnShow()
@@ -60,14 +68,14 @@ namespace Vocaluxe.Menu.SongMenu
             _SongMenu.OnHide();
         }
 
-        public void HandleInput(ref KeyEvent KeyEvent, ScreenSongOptions SongOptions)
+        public void HandleInput(ref SKeyEvent keyEvent, SScreenSongOptions songOptions)
         {
-            _SongMenu.HandleInput(ref KeyEvent, SongOptions);
+            _SongMenu.HandleInput(ref keyEvent, songOptions);
         }
 
-        public void HandleMouse(ref MouseEvent MouseEvent, ScreenSongOptions SongOptions)
+        public void HandleMouse(ref SMouseEvent mouseEvent, SScreenSongOptions songOptions)
         {
-            _SongMenu.HandleMouse(ref MouseEvent, SongOptions);
+            _SongMenu.HandleMouse(ref mouseEvent, songOptions);
         }
 
         public void Draw()
@@ -75,9 +83,9 @@ namespace Vocaluxe.Menu.SongMenu
             _SongMenu.Draw();
         }
 
-        public void ApplyVolume(float VolumeMax)
+        public void ApplyVolume(float volumeMax)
         {
-            _SongMenu.ApplyVolume(VolumeMax);
+            _SongMenu.ApplyVolume(volumeMax);
         }
 
         public bool IsActive()
@@ -85,9 +93,9 @@ namespace Vocaluxe.Menu.SongMenu
             return _SongMenu.IsActive();
         }
 
-        public void SetActive(bool Active)
+        public void SetActive(bool active)
         {
-            _SongMenu.SetActive(Active);
+            _SongMenu.SetActive(active);
         }
 
         public int GetSelectedSong()
@@ -100,9 +108,9 @@ namespace Vocaluxe.Menu.SongMenu
             return _SongMenu.GetSelectedSongCover();
         }
 
-        public void SetSelectedSong(int VisibleSongNr)
+        public void SetSelectedSong(int visibleSongNr)
         {
-            _SongMenu.SetSelectedSong(VisibleSongNr);
+            _SongMenu.SetSelectedSong(visibleSongNr);
         }
 
         public int GetSelectedCategory()
@@ -110,9 +118,14 @@ namespace Vocaluxe.Menu.SongMenu
             return _SongMenu.GetSelectedCategory();
         }
 
-        public void SetSelectedCategory(int CategoryNr)
+        public void SetSelectedCategory(int categoryNr)
         {
-            _SongMenu.SetSelectedCategory(CategoryNr);
+            _SongMenu.SetSelectedCategory(categoryNr);
+        }
+
+        public bool EnterCurrentCategory()
+        {
+            return _SongMenu.EnterCurrentCategory();
         }
 
         public int GetActualSelection()
@@ -125,9 +138,9 @@ namespace Vocaluxe.Menu.SongMenu
             return _SongMenu.IsSelected();
         }
 
-        public void SetSelected(bool Selected)
+        public void SetSelected(bool selected)
         {
-            _SongMenu.SetSelected(Selected);
+            _SongMenu.SetSelected(selected);
         }
 
         public bool IsVisible()
@@ -135,9 +148,9 @@ namespace Vocaluxe.Menu.SongMenu
             return _SongMenu.IsVisible();
         }
 
-        public void SetVisible(bool Visible)
+        public void SetVisible(bool visible)
         {
-            _SongMenu.SetVisible(Visible);
+            _SongMenu.SetVisible(visible);
         }
 
         public SRectF GetRect()
@@ -150,11 +163,10 @@ namespace Vocaluxe.Menu.SongMenu
             return _SongMenu.IsSmallView();
         }
 
-        public void SetSmallView(bool SmallView)
+        public void SetSmallView(bool smallView)
         {
-            _SongMenu.SetSmallView(SmallView);
+            _SongMenu.SetSmallView(smallView);
         }
-
         #endregion ISongMenu
 
         #region IMenuElement
@@ -163,9 +175,9 @@ namespace Vocaluxe.Menu.SongMenu
             return _SongMenu.GetThemeName();
         }
 
-        public bool LoadTheme(string XmlPath, string ElementName, CXMLReader xmlReader, int SkinIndex)
+        public bool LoadTheme(string xmlPath, string elementName, CXMLReader xmlReader, int skinIndex)
         {
-            return _SongMenu.LoadTheme(XmlPath, ElementName, xmlReader, SkinIndex);
+            return _SongMenu.LoadTheme(xmlPath, elementName, xmlReader, skinIndex);
         }
 
         public bool SaveTheme(XmlWriter writer)
@@ -199,30 +211,27 @@ namespace Vocaluxe.Menu.SongMenu
         }
         #endregion IMenuElement
 
-        private void CreateSongMenu()
+        private void _CreateSongMenu()
         {
             if (_SongMenu != null)
-            {
                 _SongMenu.OnHide();
-            }
 
             switch (CBase.Config.GetSongMenuType())
             {
-                //case ESongMenu.TR_CONFIG_LIST:
-                //    _SongMenu = new CSongMenuList();
-                //    break;
+                    //case ESongMenu.TR_CONFIG_LIST:
+                    //    _SongMenu = new CSongMenuList();
+                    //    break;
 
-                //case ESongMenu.TR_CONFIG_DREIDEL:
-                //    _SongMenu = new CSongMenuDreidel();
-                //    break;
-
+                    //case ESongMenu.TR_CONFIG_DREIDEL:
+                    //    _SongMenu = new CSongMenuDreidel();
+                    //    break;
                 case ESongMenu.TR_CONFIG_TILE_BOARD:
                     _SongMenu = new CSongMenuTileBoard(_PartyModeID);
                     break;
 
-                //case ESongMenu.TR_CONFIG_BOOK:
-                //    _SongMenu = new CSongMenuBook();
-                //    break;
+                    //case ESongMenu.TR_CONFIG_BOOK:
+                    //    _SongMenu = new CSongMenuBook();
+                    //    break;
             }
 
             _Type = CBase.Config.GetSongMenuType();

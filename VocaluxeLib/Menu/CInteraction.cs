@@ -1,29 +1,44 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿#region license
+// /*
+//     This file is part of Vocaluxe.
+// 
+//     Vocaluxe is free software: you can redistribute it and/or modify
+//     it under the terms of the GNU General Public License as published by
+//     the Free Software Foundation, either version 3 of the License, or
+//     (at your option) any later version.
+// 
+//     Vocaluxe is distributed in the hope that it will be useful,
+//     but WITHOUT ANY WARRANTY; without even the implied warranty of
+//     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//     GNU General Public License for more details.
+// 
+//     You should have received a copy of the GNU General Public License
+//     along with Vocaluxe. If not, see <http://www.gnu.org/licenses/>.
+//  */
+#endregion
 
-namespace Vocaluxe.Menu
+namespace VocaluxeLib.Menu
 {
     public enum EType
     {
-        TBackground,
-        TButton,
-        TSelectSlide,
-        TText,
-        TStatic,
-        TSongMenu,
-        TLyric,
-        TSingNote,
-        TNameSelection,
-        TEqualizer,
-        TPlaylist,
-        TParticleEffect
+        Background,
+        Button,
+        SelectSlide,
+        Text,
+        Static,
+        SongMenu,
+        Lyric,
+        SingNote,
+        NameSelection,
+        Equalizer,
+        Playlist,
+        ParticleEffect
     }
 
     class CInteraction
     {
-        private int _Num;
-        private EType _Type;
+        private readonly int _Num;
+        private readonly EType _Type;
 
         public int Num
         {
@@ -39,15 +54,15 @@ namespace Vocaluxe.Menu
         {
             get
             {
-                return (_Type == EType.TBackground ||
-                    _Type == EType.TNameSelection ||
-                    _Type == EType.TText ||
-                    _Type == EType.TStatic ||
-                    _Type == EType.TSongMenu ||
-                    _Type == EType.TLyric ||
-                    _Type == EType.TSingNote ||
-                    _Type == EType.TEqualizer ||
-                    _Type == EType.TPlaylist);
+                return _Type == EType.Background ||
+                       _Type == EType.NameSelection ||
+                       _Type == EType.Text ||
+                       _Type == EType.Static ||
+                       _Type == EType.SongMenu ||
+                       _Type == EType.Lyric ||
+                       _Type == EType.SingNote ||
+                       _Type == EType.Equalizer ||
+                       _Type == EType.Playlist;
             }
         }
 
