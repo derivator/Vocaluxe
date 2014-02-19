@@ -32,8 +32,8 @@ namespace Vocaluxe.Lib.Sound
 #endif
             Application.Init();
 
-            Registry reg = Registry.Get();
-            reg.ScanPath(path);
+			Registry reg = Registry.Get();
+			reg.ScanPath(path);
            
             return Application.IsInitialized;
         }
@@ -229,7 +229,7 @@ namespace Vocaluxe.Lib.Sound
             public CGstreamerSharpAudioStream(string media, bool prescan)
             {
                 var convert = ElementFactory.Make("audioconvert", "convert");
-                var audiosink = ElementFactory.Make("directsoundsink", "audiosink");
+				var audiosink = ElementFactory.Make("autoaudiosink", "audiosink");
                 var audioSinkBin = new Bin("Audiosink");
 
                 if (convert == null || audiosink == null)
@@ -475,8 +475,10 @@ namespace Vocaluxe.Lib.Sound
             {
                 _QueryingDuration = true;
                 long duration = -1;
-                while (duration < 0 && !Closed && !Finished && _Element != null)
+				int counter = 0; //FIXME: this is a workaround
+				while (duration < 0 && !Closed && !Finished && _Element != null && counter < 1000)
                 {
+					counter++;
                     if (_Element.QueryDuration(Format.Time, out duration))
                     {
                         _Duration = duration / (float)Constants.SECOND;

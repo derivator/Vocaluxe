@@ -122,7 +122,11 @@ namespace Vocaluxe.Lib.Draw
             bool ok = false;
             try
             {
-				var gm = new GraphicsMode(24, 24, 0, (int)CConfig.AAMode);
+				#if WIN
+				var gm = new GraphicsMode(32, 24, 0, (int)CConfig.AAMode);
+				#else
+				var gm = new GraphicsMode(24, 24, 0, (int)CConfig.AAMode); //FIXME: this is a workaround and causes glitches
+				#endif
 				_Control = new GLControl(gm, 2, 1, GraphicsContextFlags.Default);
                 if (_Control.GraphicsMode != null)
                     ok = true;
@@ -354,7 +358,10 @@ namespace Vocaluxe.Lib.Draw
 
         private void _OnMouseEnter(object sender, EventArgs e)
         {
-            Cursor.Hide(); //TODO: this doesn't work on linux
+            Cursor.Hide();
+			#if !WIN && !DEBUG
+				Cursor = new Cursor("blank.cur");
+			#endif
             _Mouse.Visible = true;
         }
         #endregion

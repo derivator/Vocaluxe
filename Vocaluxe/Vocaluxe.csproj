@@ -178,8 +178,8 @@
     <Reference Include="Community.CsharpSqlite">
       <HintPath>..\Output\Community.CsharpSqlite.dll</HintPath>
     </Reference>
-    <Reference Include="glib-sharp, Version=2.12.0.0, Culture=neutral, PublicKeyToken=35e10195dab3c99f, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
+    <Reference Include="glib-sharp, Version=3.0.0.0, Culture=neutral, PublicKeyToken=35e10195dab3c99f, processorArchitecture=MSIL">
+      <SpecificVersion>True</SpecificVersion>
       <HintPath>..\Output\glib-sharp.dll</HintPath>
     </Reference>
     <Reference Include="gstreamer-sharp, Version=0.99.0.0, Culture=neutral, PublicKeyToken=5cbf79803e97ff61, processorArchitecture=MSIL">
@@ -479,8 +479,18 @@
     <PostBuildEvent Condition=" '$(OS)' == 'Windows_NT' ">xcopy /E /D /Y "$(ProjectDir)\Website" "$(SolutionDir)\PhoneGap"</PostBuildEvent>
     <PostBuildEvent Condition=" '$(OS)' != 'Windows_NT' ">cp -ruT "$(ProjectDir)Website" "$(SolutionDir)/PhoneGap"</PostBuildEvent>
   </PropertyGroup>
+  <Target Name="AfterBuild">
+     <Copy SourceFiles="$(SolutionDir)WindowsLibs/gstreamer-sharp.dll" DestinationFolder="$(SolutionDir)Output" ContinueOnError="false" />
+     <Copy SourceFiles="$(SolutionDir)WindowsLibs/glib-sharp.dll" DestinationFolder="$(SolutionDir)Output" ContinueOnError="false" />
+  </Target>
+  <Target Name="AfterBuild" Condition="!('$(Configuration)' == 'DebugWin' Or '$(Configuration)' == 'ReleaseWin' Or '$(Configuration)' == 'InstallerWin')" >
+     <Delete Files="$(SolutionDir)Output/gstreamer-sharp.dll" ContinueOnError="false" />
+     <Delete Files="$(SolutionDir)Output/glib-sharp.dll" ContinueOnError="false" />
+  </Target>
+  
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
+
   <Target Name="BeforeBuild">
   </Target>
   <Target Name="AfterBuild">

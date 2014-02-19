@@ -168,8 +168,11 @@ namespace Vocaluxe.Lib.Sound
             if (!_Initialized)
                 return false;
 
-            foreach (IntPtr handle in _RecHandle)
-                CPortAudio.Pa_StopStream(handle);
+			foreach (IntPtr handle in _RecHandle)
+			{
+				CPortAudio.Pa_StopStream (handle);
+				CPortAudio.Pa_CloseStream (handle);
+			}
             return true;
         }
 
