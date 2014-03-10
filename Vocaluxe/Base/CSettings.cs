@@ -203,7 +203,7 @@ namespace Vocaluxe.Base
 
         private static string _GetVersionStatus()
         {
-            string result;
+            string result = "";
 
             // ReSharper disable ConditionIsAlwaysTrueOrFalse
             if (VersionRevision != ERevision.Release)

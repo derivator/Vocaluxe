@@ -125,7 +125,7 @@ namespace Vocaluxe.Lib.Draw
 				#if WIN
 				var gm = new GraphicsMode(32, 24, 0, (int)CConfig.AAMode);
 				#else
-				var gm = new GraphicsMode(24, 24, 0, (int)CConfig.AAMode); //FIXME: this is a workaround and causes glitches
+				var gm = new GraphicsMode(24, 24, 0, (int)CConfig.AAMode);
 				#endif
 				_Control = new GLControl(gm, 2, 1, GraphicsContextFlags.Default);
                 if (_Control.GraphicsMode != null)
@@ -248,14 +248,14 @@ namespace Vocaluxe.Lib.Draw
             FormBorderStyle = FormBorderStyle.None;
 
             int screenNr = 0;
-            for (int i = 0; i < Screen.AllScreens.Length; i++)
+            for (int i = 0; i < Screen.AllScreens.Length; i++) //TODO: mono doesn't support this
             {
                 Screen scr = Screen.AllScreens[i];
                 if (scr.Bounds.Top <= Top && scr.Bounds.Left <= Left)
                     screenNr = i;
             }
 
-            DesktopBounds = new Rectangle(Screen.AllScreens[screenNr].Bounds.Location, new Size(Screen.AllScreens[screenNr].Bounds.Width, Screen.AllScreens[screenNr].Bounds.Height));
+            DesktopBounds = new Rectangle(Screen.AllScreens[screenNr].Bounds.Location, new Size(Screen.AllScreens[screenNr].Bounds.Width, Screen.AllScreens[screenNr].Bounds.Height)); //TODO: mono doesn't support this
 
             if (WindowState == FormWindowState.Maximized)
             {
