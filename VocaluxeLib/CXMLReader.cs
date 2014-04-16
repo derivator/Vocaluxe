@@ -19,6 +19,7 @@ using System;
 using System.Collections.Generic;
 using System.Xml.XPath;
 
+
 namespace VocaluxeLib
 {
     public class CXMLReader
@@ -32,7 +33,7 @@ namespace VocaluxeLib
         }
 
         //Private method. Use OpenFile factory method to get an instance
-        private CXMLReader(string uri)
+        protected CXMLReader(string uri)
         {
             _FileName = uri;
             var xmlDoc = new XPathDocument(uri);
@@ -48,7 +49,13 @@ namespace VocaluxeLib
         {
             try
             {
-                return new CXMLReader(fileName);
+				#if WIN
+				//return new CXMLReader(fileName);
+				#endif 
+
+				#if LINUX
+				return Libxml2.CXMLReaderLibxml2.OpenFile(fileName);
+				#endif
             }
             catch (Exception e)
             {
@@ -96,13 +103,14 @@ namespace VocaluxeLib
             return GetValue(cast, out val, value.ToString()) && CHelper.TryParse(val, out value);
         }
 
-        public bool GetValue(string cast, out string value, string defaultValue)
+        public virtual bool GetValue(string cast, out string value, string defaultValue)
         {
             int resultCt = 0;
             string val = string.Empty;
 
-            _Navigator.MoveToFirstChild();
-            XPathNodeIterator iterator = _Navigator.Select(cast);
+			_Navigator.MoveToFirstChild();
+			XPathNodeIterator iterator = _Navigator.Select(cast);
+
 
             while (iterator.MoveNext())
             {
