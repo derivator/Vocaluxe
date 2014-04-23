@@ -16,8 +16,6 @@
 #endregion
 
 using System;
-using System.Collections.Generic;
-using System.Drawing;
 using System.Xml;
 using VocaluxeLib.Songs;
 
@@ -38,7 +36,7 @@ namespace VocaluxeLib.Menu
         private bool _ThemeLoaded;
 
         /// <summary>
-        /// Holds a reference to Songline. DO NOT MODIFY
+        ///     Holds a reference to Songline. DO NOT MODIFY
         /// </summary>
         private CSongLine _Line;
         private CText _Text;

@@ -57,7 +57,7 @@ namespace VocaluxeLib
         int GetMaxNumMics();
 
         /// <summary>
-        /// Get the uniform settings for writing XML files. ALWAYS use this!
+        ///     Get the uniform settings for writing XML files. ALWAYS use this!
         /// </summary>
         XmlWriterSettings GetXMLSettings();
     }
@@ -155,6 +155,8 @@ namespace VocaluxeLib
     public interface ILog
     {
         void LogError(string errorText);
+        void LogDebug(string text);
+        void LogSongInfo(string text);
     }
 
     public interface IFonts

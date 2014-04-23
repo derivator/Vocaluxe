@@ -15,11 +15,8 @@
 // along with Vocaluxe. If not, see <http://www.gnu.org/licenses/>.
 #endregion
 
-using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Windows.Forms;
-using VocaluxeLib.PartyModes;
 using VocaluxeLib.Draw;
 using VocaluxeLib.Profile;
 
@@ -30,6 +27,7 @@ namespace VocaluxeLib.Menu
         public int[] NumPlayerTeams;
         public List<int>[] TeamList;
     }
+
     public abstract class CMenuPartyNameSelection : CMenuParty
     {
         private bool _Teams;
@@ -40,7 +38,7 @@ namespace VocaluxeLib.Menu
         protected bool _AllowChangeTeamNum = true;
         protected bool _ChangePlayerNumDynamic = true;
         protected bool _ChangeTeamNumDynamic = true;
-        private int _CurrentTeam = 0;
+        private int _CurrentTeam;
 
         private bool _AvatarsChanged;
         private bool _ProfilesChanged;
@@ -70,9 +68,9 @@ namespace VocaluxeLib.Menu
         public override void Init()
         {
             base.Init();
-            _ThemeButtons = new string[] { _ButtonBack, _ButtonNext, _ButtonRandom, _ButtonIncreaseTeams, _ButtonDecreaseTeams, _ButtonIncreasePlayer, _ButtonDecreasePlayer };
-            _ThemeSelectSlides = new string[] { _SelectSlideTeams, _SelectSlidePlayer };
-            _ThemeNameSelections = new string[] { _NameSelection };
+            _ThemeButtons = new string[] {_ButtonBack, _ButtonNext, _ButtonRandom, _ButtonIncreaseTeams, _ButtonDecreaseTeams, _ButtonIncreasePlayer, _ButtonDecreasePlayer};
+            _ThemeSelectSlides = new string[] {_SelectSlideTeams, _SelectSlidePlayer};
+            _ThemeNameSelections = new string[] {_NameSelection};
 
             _ChooseAvatarStatic = GetNewStatic();
             _ChooseAvatarStatic.Visible = false;
@@ -83,20 +81,17 @@ namespace VocaluxeLib.Menu
 
         public void SetPartyModeData(int numPlayer)
         {
-            SetPartyModeData(1, numPlayer, new int[] { numPlayer });
+            SetPartyModeData(1, numPlayer, new int[] {numPlayer});
             _CurrentTeam = 0;
         }
 
-        public void SetPartyModeData(int numTeams, int numPlayer, int[] numPlayerTeams) 
+        public void SetPartyModeData(int numTeams, int numPlayer, int[] numPlayerTeams)
         {
             _NumTeams = numTeams;
             _NumPlayer = numPlayer;
             _NumPlayerTeams = numPlayerTeams;
 
-            if (_NumTeams > 0)
-                _TeamList = new List<int>[_NumTeams];
-            else
-                _TeamList = new List<int>[1];
+            _TeamList = new List<int>[_NumTeams > 0 ? _NumTeams : 1];
 
             if (_NumTeams != _NumPlayerTeams.Length)
                 _NumPlayerTeams = new int[_NumTeams];
@@ -125,7 +120,7 @@ namespace VocaluxeLib.Menu
             {
                 //Handle left/right/up/down
                 _NameSelections[_NameSelection].HandleInput(keyEvent);
-                int numberPressed = -1;
+                int numPressed = -1;
                 bool resetSelection = false;
                 switch (keyEvent.Key)
                 {
@@ -141,13 +136,14 @@ namespace VocaluxeLib.Menu
                             _AddPlayer(_CurrentTeam, _SelectedProfileID);
                         }
                         //Started selecting with 'P'
-                        if (_SelectingFast) {
+                        if (_SelectingFast)
+                        {
                             if (!_ChangePlayerNumDynamic && _TeamList[_CurrentTeam].Count == _NumPlayerTeams[_CurrentTeam])
                                 resetSelection = true;
                             else if (_TeamList[_CurrentTeam].Count == _PartyMode.GetMaxPlayerPerTeam())
                                 resetSelection = true;
                         }
-                        else if(!_SelectingFast)
+                        else if (!_SelectingFast)
                             resetSelection = true;
                         break;
 
@@ -155,20 +151,65 @@ namespace VocaluxeLib.Menu
                     case Keys.Back:
                         resetSelection = true;
                         break;
+
+                    case Keys.D1:
+                    case Keys.NumPad1:
+                        numPressed = 1;
+                        break;
+
+                    case Keys.D2:
+                    case Keys.NumPad2:
+                        numPressed = 2;
+                        break;
+
+                    case Keys.D3:
+                    case Keys.NumPad3:
+                        numPressed = 3;
+                        break;
+
+                    case Keys.D4:
+                    case Keys.NumPad4:
+                        numPressed = 4;
+                        break;
+
+                    case Keys.D5:
+                    case Keys.NumPad5:
+                        numPressed = 5;
+                        break;
+
+                    case Keys.D6:
+                    case Keys.NumPad6:
+                        numPressed = 6;
+                        break;
+
+                    case Keys.D7:
+                    case Keys.NumPad7:
+                        numPressed = 7;
+                        break;
+
+                    case Keys.D8:
+                    case Keys.NumPad8:
+                        numPressed = 8;
+                        break;
+
+                    case Keys.D9:
+                    case Keys.NumPad9:
+                        numPressed = 9;
+                        break;
                 }
-                if (numberPressed > 0 || resetSelection)
+                if (numPressed > 0 || resetSelection)
                 {
-                    if (numberPressed == _SelectingFastPlayerNr || resetSelection)
+                    if (numPressed == _SelectingFastPlayerNr || resetSelection)
                     {
                         //Reset all values
                         _SelectingFastPlayerNr = 0;
                         _SelectingKeyboardActive = false;
                         _NameSelections[_NameSelection].FastSelection(false, -1);
                     }
-                    else if (numberPressed <= _NumPlayerTeams[_CurrentTeam])
+                    else if (numPressed <= _NumPlayerTeams[_CurrentTeam])
                     {
-                        _SelectingFastPlayerNr = numberPressed;
-                        _NameSelections[_NameSelection].FastSelection(true, numberPressed);
+                        _SelectingFastPlayerNr = numPressed;
+                        _NameSelections[_NameSelection].FastSelection(true, numPressed);
                     }
                     _SelectingFast = false;
                 }
@@ -292,14 +333,15 @@ namespace VocaluxeLib.Menu
                         else if (_SelectSlides[_SelectSlidePlayer].Selected)
                             IncreasePlayerNum(_CurrentTeam);
                         break;
-
                 }
 
                 if (numPressed > 0)
                 {
                     if (_ChangeTeamNumDynamic && numPressed < _PartyMode.GetMaxTeams() && numPressed > _SelectSlides[_SelectSlideTeams].NumValues)
+                    {
                         while (numPressed < _PartyMode.GetMaxTeams())
                             IncreaseTeamNum();
+                    }
                     if (numPressed <= _SelectSlides[_SelectSlideTeams].NumValues)
                         _SelectSlides[_SelectSlideTeams].SetSelectionByValueIndex(numPressed - 1);
                 }
@@ -353,7 +395,7 @@ namespace VocaluxeLib.Menu
                 _OldMouseX = mouseEvent.X;
                 _OldMouseY = mouseEvent.Y;
             }
-            // LeftButton isn't hold anymore, but Select-Mode is still active -> "Drop" of Avatar
+                // LeftButton isn't hold anymore, but Select-Mode is still active -> "Drop" of Avatar
             else if (_SelectedProfileID >= 0 && !_SelectingFast)
             {
                 //Check if mouse is in drop-area
@@ -439,7 +481,7 @@ namespace VocaluxeLib.Menu
             else if (mouseEvent.RB)
             {
                 bool exit = true;
-                if (_SelectSlides[_SelectSlidePlayer].Selected && _TeamList[_CurrentTeam].Count > 0 )
+                if (_SelectSlides[_SelectSlidePlayer].Selected && _TeamList[_CurrentTeam].Count > 0)
                 {
                     int currentSelection = _SelectSlides[_SelectSlidePlayer].Selection;
                     int id = _TeamList[_CurrentTeam][currentSelection];
@@ -447,7 +489,7 @@ namespace VocaluxeLib.Menu
                     _UpdatePlayerSlide();
                     exit = false;
                 }
-                
+
                 if (exit)
                     Back();
             }
@@ -527,9 +569,7 @@ namespace VocaluxeLib.Menu
 
         public SPartyNameOptions GetData()
         {
-            SPartyNameOptions option = new SPartyNameOptions();
-            option.NumPlayerTeams = _NumPlayerTeams;
-            option.TeamList = _TeamList;
+            SPartyNameOptions option = new SPartyNameOptions {NumPlayerTeams = _NumPlayerTeams, TeamList = _TeamList};
             return option;
         }
 
@@ -568,9 +608,7 @@ namespace VocaluxeLib.Menu
                 return;
 
             if (_NumTeams - 1 >= _PartyMode.GetMinTeams())
-            {
                 _NumTeams--;
-            }
             _UpdateButtonState();
         }
 
@@ -601,9 +639,8 @@ namespace VocaluxeLib.Menu
             }
             _UpdateButtonState();
         }
-        
-        #region private methods
 
+        #region private methods
         private void _OnProfileChanged(EProfileChangedFlags flags)
         {
             if (EProfileChangedFlags.Avatar == (EProfileChangedFlags.Avatar & flags))
@@ -650,9 +687,7 @@ namespace VocaluxeLib.Menu
                 _SelectSlides[_SelectSlidePlayer].AddValue(name, avatar);
             }
             for (int i = _TeamList[_CurrentTeam].Count; i < _NumPlayerTeams[_CurrentTeam]; i++)
-            {
                 _SelectSlides[_SelectSlidePlayer].AddValue("", _NameSelections[_NameSelection].TextureEmptyTile);
-            }
             if (selection >= _TeamList[_CurrentTeam].Count)
                 selection = _TeamList[_CurrentTeam].Count - 1;
             _SelectSlides[_SelectSlidePlayer].SetSelectionByValueIndex(selection);
@@ -664,13 +699,12 @@ namespace VocaluxeLib.Menu
             _SelectSlides[_SelectSlideTeams].Clear();
             for (int i = 1; i <= _NumTeams; i++)
                 _SelectSlides[_SelectSlideTeams].AddValue("Team " + i);
-
         }
 
         private void _UpdateButtonVisibility()
         {
-            _Buttons[_ButtonIncreaseTeams].Visible = _AllowChangePlayerNum && _Teams && _PartyMode.GetMinTeams()  != _PartyMode.GetMaxTeams();
-            _Buttons[_ButtonDecreaseTeams].Visible = _AllowChangePlayerNum && _Teams && _PartyMode.GetMinTeams() != _PartyMode.GetMaxTeams(); 
+            _Buttons[_ButtonIncreaseTeams].Visible = _AllowChangePlayerNum && _Teams && _PartyMode.GetMinTeams() != _PartyMode.GetMaxTeams();
+            _Buttons[_ButtonDecreaseTeams].Visible = _AllowChangePlayerNum && _Teams && _PartyMode.GetMinTeams() != _PartyMode.GetMaxTeams();
             _Buttons[_ButtonIncreasePlayer].Visible = _AllowChangePlayerNum;
             _Buttons[_ButtonDecreasePlayer].Visible = _AllowChangePlayerNum;
         }
@@ -695,7 +729,7 @@ namespace VocaluxeLib.Menu
         {
             if (_NumPlayerTeams[team] == _TeamList[team].Count && !_ChangePlayerNumDynamic)
                 return;
-            else if (_NumPlayerTeams[team] == _PartyMode.GetMaxPlayerPerTeam())
+            if (_NumPlayerTeams[team] == _PartyMode.GetMaxPlayerPerTeam())
                 return;
 
             _NameSelections[_NameSelection].UseProfile(profileID);
@@ -710,10 +744,8 @@ namespace VocaluxeLib.Menu
             {
                 List<int> ids = new List<int>();
                 ids.AddRange(_TeamList[t]);
-                for (int p = 0; p < ids.Count; p++)
-                {
-                    _RemovePlayer(t, ids[p]);
-                }
+                foreach (int id in ids)
+                    _RemovePlayer(t, id);
             }
         }
 
@@ -745,7 +777,6 @@ namespace VocaluxeLib.Menu
                 }
             }
         }
-
-        #endregion 
+        #endregion
     }
 }
