@@ -13,6 +13,7 @@
 // 
 // You should have received a copy of the GNU General Public License
 // along with Vocaluxe. If not, see <http://www.gnu.org/licenses/>.
+
 #endregion
 
 using System;
@@ -27,6 +28,9 @@ using Vocaluxe.Base;
 using System.Runtime.ExceptionServices;
 using Vocaluxe.Base.Fonts;
 using Vocaluxe.Base.Server;
+#if LINUX
+using VocaluxeLib.Libxml2;
+#endif
 
 namespace Vocaluxe
 {
@@ -254,6 +258,10 @@ namespace Vocaluxe
                 CDataBase.CloseConnections();
                 CWebcam.Close();
                 CLog.CloseAll();
+
+                #if LINUX
+                CXMLReaderLibxml2.CleanupParser();
+                #endif
             }
             catch (Exception) {}
             Environment.Exit(Environment.ExitCode);

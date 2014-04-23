@@ -19,11 +19,11 @@ using System;
 using System.Collections.Generic;
 using System.Xml.XPath;
 
+
 namespace VocaluxeLib
 {
-    public class CXMLReader
+    public abstract class CXMLReader
     {
-        private readonly XPathNavigator _Navigator;
         private readonly String _FileName;
 
         public string FileName
@@ -32,23 +32,22 @@ namespace VocaluxeLib
         }
 
         //Private method. Use OpenFile factory method to get an instance
-        private CXMLReader(string uri)
+        protected CXMLReader(string uri)
         {
             _FileName = uri;
-            var xmlDoc = new XPathDocument(uri);
-            _Navigator = xmlDoc.CreateNavigator();
-        }
-
-        public XPathNavigator Navigator
-        {
-            get { return _Navigator; }
-        }
+        }            
 
         public static CXMLReader OpenFile(string fileName)
         {
             try
             {
-                return new CXMLReader(fileName);
+                #if WIN
+                return CXMLReaderDotNET.OpenFile(fileName);
+                #endif 
+
+                #if LINUX
+                return Libxml2.CXMLReaderLibxml2.OpenFile(fileName);
+                #endif
             }
             catch (Exception e)
             {
@@ -96,100 +95,24 @@ namespace VocaluxeLib
             return GetValue(cast, out val, value.ToString()) && CHelper.TryParse(val, out value);
         }
 
-        public bool GetValue(string cast, out string value, string defaultValue)
+        public abstract bool GetValue(string cast, out string value, string defaultValue);
+
+        public abstract List<string> GetValues(string cast);
+
+        public abstract IEnumerable<string> GetAttributes(string cast, string attribute);
+
+        public abstract bool GetInnerValues(string cast, ref List<string> values);       
+
+        /// <summary>
+        /// Check if item exists (uniquely)
+        /// </summary>
+        /// <returns><c>true</c>, if exactly one item was found, <c>false</c> otherwise.</returns>
+        /// <param name="cast">XPath to check</param>
+        public bool ItemExists(string cast) 
         {
-            int resultCt = 0;
-            string val = string.Empty;
-
-            _Navigator.MoveToFirstChild();
-            XPathNodeIterator iterator = _Navigator.Select(cast);
-
-            while (iterator.MoveNext())
-            {
-                val = iterator.Current.Value;
-                resultCt++;
-            }
-
-            if (resultCt != 1)
-            {
-                value = defaultValue;
-                return false;
-            }
-            value = val;
-            return true;
+            string value;
+            return GetValue(cast, out value, String.Empty);
         }
 
-        public List<string> GetValues(string cast)
-        {
-            var values = new List<string>();
-
-            _Navigator.MoveToRoot();
-            _Navigator.MoveToFirstChild();
-            _Navigator.MoveToFirstChild();
-
-            while (_Navigator.Name != cast)
-                _Navigator.MoveToNext();
-
-            _Navigator.MoveToFirstChild();
-
-            values.Add(_Navigator.LocalName);
-            while (_Navigator.MoveToNext())
-                values.Add(_Navigator.LocalName);
-
-            return values;
-        }
-
-        public IEnumerable<string> GetAttributes(string cast, string attribute)
-        {
-            var values = new List<string>();
-
-            _Navigator.MoveToRoot();
-            _Navigator.MoveToFirstChild();
-
-            while (_Navigator.Name != cast)
-                _Navigator.MoveToNext();
-
-            _Navigator.MoveToFirstChild();
-
-            values.Add(_Navigator.LocalName);
-            while (_Navigator.MoveToNext())
-                values.Add(_Navigator.GetAttribute(attribute, ""));
-
-            return values;
-        }
-
-        public bool GetInnerValues(string cast, ref List<string> values)
-        {
-            _Navigator.MoveToRoot();
-            _Navigator.MoveToFirstChild();
-            _Navigator.MoveToFirstChild();
-
-            while (_Navigator.Name != cast)
-                _Navigator.MoveToNext();
-
-            _Navigator.MoveToFirstChild();
-
-            values.Add(_Navigator.Value);
-            while (_Navigator.MoveToNext())
-                values.Add(_Navigator.Value);
-
-            return true;
-        }
-
-        public bool ItemExists(string cast)
-        {
-            int results = 0;
-
-            _Navigator.MoveToFirstChild();
-            XPathNodeIterator iterator = _Navigator.Select(cast);
-
-            while (iterator.MoveNext())
-                results++;
-
-            if (results == 0)
-                return false;
-
-            return true;
-        }
     }
 }
