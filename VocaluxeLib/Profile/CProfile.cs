@@ -17,7 +17,6 @@
 
 using System;
 using System.IO;
-using System.Text;
 using System.Xml;
 
 namespace VocaluxeLib.Profile
@@ -71,9 +70,11 @@ namespace VocaluxeLib.Profile
             FileName = String.Empty;
         }
 
-        public bool LoadProfile()
+        public bool LoadProfile(string pathName, string fileName)
         {
-            return LoadProfile(FilePath, FileName);
+            FilePath = pathName;
+            FileName = fileName;
+            return LoadProfile();
         }
 
         public bool LoadProfile(string file)
@@ -81,10 +82,10 @@ namespace VocaluxeLib.Profile
             FileName = Path.GetFileName(file);
             FilePath = Path.GetDirectoryName(file);
 
-            return LoadProfile(FilePath, FileName);
+            return LoadProfile();
         }
 
-        public bool LoadProfile(string pathName, string fileName)
+        public bool LoadProfile()
         {
             CXMLReader xmlReader = CXMLReader.OpenFile(Path.Combine(FilePath, FileName));
             if (xmlReader == null)
@@ -121,7 +122,7 @@ namespace VocaluxeLib.Profile
                 string filename = string.Empty;
                 // ReSharper disable LoopCanBeConvertedToQuery
                 foreach (char chr in PlayerName)
-                // ReSharper restore LoopCanBeConvertedToQuery
+                    // ReSharper restore LoopCanBeConvertedToQuery
                 {
                     if (char.IsLetter(chr))
                         filename += chr.ToString();
@@ -166,13 +167,9 @@ namespace VocaluxeLib.Profile
                 writer.WriteElementString("UserRole", Enum.GetName(typeof(EUserRole), UserRole));
                 writer.WriteElementString("Active", Enum.GetName(typeof(EOffOn), Active));
                 if (PasswordHash != null)
-                {
                     writer.WriteElementString("PasswordHash", Convert.ToBase64String(PasswordHash));
-                }
                 if (PasswordSalt != null)
-                {
                     writer.WriteElementString("PasswordSalt", Convert.ToBase64String(PasswordSalt));
-                }
                 writer.WriteEndElement();
 
                 writer.WriteEndElement(); //end of root

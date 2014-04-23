@@ -259,6 +259,7 @@ namespace Vocaluxe
             Environment.Exit(Environment.ExitCode);
         }
 
+#if !DEBUG
         [HandleProcessCorruptedStateExceptions]
         private static void UnhandledExceptionHandler(object sender, UnhandledExceptionEventArgs args)
         {
@@ -273,6 +274,7 @@ namespace Vocaluxe
             CLog.LogError("Unhandled exception: " + e.Message + stackTrace);
             _CloseProgram();
         }
+#endif
 
         private static Assembly _AssemblyResolver(Object sender, ResolveEventArgs args)
         {
@@ -326,9 +328,9 @@ namespace Vocaluxe
                 Process currentProcess = Process.GetCurrentProcess();
                 Process[] processes = Process.GetProcessesByName(currentProcess.ProcessName);
 
-                foreach (var process in processes.Where(t => t.Id != currentProcess.Id))
+                foreach (Process process in processes.Where(t => t.Id != currentProcess.Id))
                 {
-                    var wnd = process.MainWindowHandle;
+                    IntPtr wnd = process.MainWindowHandle;
                     if (wnd != IntPtr.Zero)
                         SetForegroundWindow(wnd);
                 }
