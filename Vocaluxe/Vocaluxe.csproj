@@ -522,10 +522,13 @@ powershell -command "(Get-Content -Encoding UTF8 '$(ProjectDir)Properties\Assemb
       <OtherFilesToMove></OtherFilesToMove>
       <OtherFilesToMove Include="$(TargetDir)System.Data.SQLite.xml;" Condition="Exists('$(TargetDir)System.Data.SQLite.xml')"/>
     </ItemGroup>
-    <Copy SourceFiles="@(RootDLLFilesToMove)" DestinationFiles="@(RootDLLFilesToMove->'$(TargetDir)libs\managed\%(Filename)%(Extension)')" />
-    <Copy SourceFiles="@(x64FolderFilesToMove)" DestinationFiles="@(x64FolderFilesToMove->'$(TargetDir)libs\managed\x64\%(Filename)%(Extension)')" />
-    <Copy SourceFiles="@(x86FolderFilesToMove)" DestinationFiles="@(x86FolderFilesToMove->'$(TargetDir)libs\managed\x86\%(Filename)%(Extension)')" />
-    <Copy SourceFiles="@(OtherFilesToMove)" DestinationFiles="@(OtherFilesToMove->'$(TargetDir)libs\managed\%(Filename)%(Extension)')" />
+    <PropertyGroup>
+      <WorkaroundTargetDir Condition=" '$(WorkaroundTargetDir)' == '' ">$(TargetDir)</WorkaroundTargetDir>
+    </PropertyGroup>
+    <Copy SourceFiles="@(RootDLLFilesToMove)" DestinationFiles="@(RootDLLFilesToMove->'$(WorkaroundTargetDir)libs\managed\%(Filename)%(Extension)')" />
+    <Copy SourceFiles="@(x64FolderFilesToMove)" DestinationFiles="@(x64FolderFilesToMove->'$(WorkaroundTargetDir)libs\managed\x64\%(Filename)%(Extension)')" />
+    <Copy SourceFiles="@(x86FolderFilesToMove)" DestinationFiles="@(x86FolderFilesToMove->'$(WorkaroundTargetDir)libs\managed\x86\%(Filename)%(Extension)')" />
+    <Copy SourceFiles="@(OtherFilesToMove)" DestinationFiles="@(OtherFilesToMove->'$(WorkaroundTargetDir)libs\managed\%(Filename)%(Extension)')" />
     <Delete Files="@(RootDLLFilesToMove)" />
     <Delete Files="@(x64FolderFilesToMove)" />
     <Delete Files="@(x86FolderFilesToMove)" />
