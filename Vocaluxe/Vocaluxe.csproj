@@ -511,6 +511,7 @@ powershell -command "(Get-Content -Encoding UTF8 '$(ProjectDir)Properties\Assemb
     <Message Text="move all libs to the managed dependencies folder" Importance="normal" />
     <ItemGroup>
       <RootDLLFilesToMove Include="$(TargetDir)*.dll" />
+      <FilesToRemoveLinux Include="$(TargetDir)libs\managed\glib-sharp.dll;$(TargetDir)libs\managed\gstreamer-sharp.dll;"/>
     </ItemGroup>
     <ItemGroup>
       <x64FolderFilesToMove Include="$(TargetDir)x64\*.*" />
@@ -533,6 +534,7 @@ powershell -command "(Get-Content -Encoding UTF8 '$(ProjectDir)Properties\Assemb
     <Delete Files="@(x64FolderFilesToMove)" />
     <Delete Files="@(x86FolderFilesToMove)" />
     <Delete Files="@(OtherFilesToMove)" />
+    <Delete Files="@(FilesToRemoveLinux)" Condition="'$(Configuration)' == 'ReleaseLinux' OR '$(Configuration)' == 'DebugLinux' "/>
     <RemoveDir Directories="$(TargetDir)\x64\;$(TargetDir)\x86\" />
   </Target>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">

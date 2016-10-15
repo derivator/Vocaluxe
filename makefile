@@ -1,17 +1,14 @@
 ARCH?=$(shell uname -m | sed -e s/i.86/x86/ -e s/x86_64/x64/)
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
-windowsLibs = Output/gstreamer-sharp.dll Output/glib-sharp.dll
 all:
 	$(MAKE) -C PitchTracker
 	$(MAKE) -C Vocaluxe/Lib/Video/Acinerella
-	rm -f $(windowsLibs)
 	xbuild /property:Platform=$(ARCH) /property:Configuration=ReleaseLinux /property:WorkaroundTargetDir="$(ROOT_DIR)/Output/"
 
 clean:
 	xbuild /target:Clean
 	$(MAKE) -C PitchTracker clean
 	$(MAKE) -C Vocaluxe/Lib/Video/Acinerella clean
-	git checkout $(windowsLibs)
 
 INSTALLPATH?=/usr/share/vocaluxe
 WRONG_ARCH=$(shell echo $(ARCH) | sed -e s/x86/x64/ -e s/x64/x86/)
