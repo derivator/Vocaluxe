@@ -75,6 +75,8 @@ namespace Vocaluxe.Base
 
 #if INSTALLER
         public static readonly string DataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Vocaluxe");
+#elif LINUX && DEBUG
+        public static readonly string DataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VocaluxeDebug");
 #elif LINUX
         public static readonly string DataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Vocaluxe");
 #else
